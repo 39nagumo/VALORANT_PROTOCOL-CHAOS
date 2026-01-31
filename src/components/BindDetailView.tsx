@@ -1,5 +1,3 @@
-import React from 'react';
-
 // URLの例: /bind?name=うるく&rarity=CHAOS&text=アビリティ禁止
 export function BindDetailView() {
   // URLから情報を取得
@@ -44,4 +42,5 @@ export function BindDetailView() {
       </div>
     </div>
   );
+
 }
