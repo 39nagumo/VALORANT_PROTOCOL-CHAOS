@@ -130,7 +130,7 @@ export function MapGacha({ onBack }: Props) {
       <header className="mb-8 flex justify-between items-end border-b border-white/10 pb-4">
         <div>
           <button onClick={onBack} className="text-xs text-gray-400 hover:text-white transition-colors mb-2 block uppercase tracking-[0.2em] font-bold">
-            ← Back to Gacha
+            ← Back
           </button>
           <div className="flex items-center gap-6">
             <h2 className="text-4xl font-black italic uppercase tracking-tighter">MAP <span className="text-[#FF4655]">SELECTION</span></h2>

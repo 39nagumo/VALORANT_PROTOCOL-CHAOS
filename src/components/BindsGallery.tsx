@@ -80,7 +80,7 @@ export function BindsGallery({ onBack, onNavigateToSubmit }: Props) {
                 onClick={onBack}
                 className="mb-6 flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
             >
-                ← Back to Gacha
+                ← Back
             </button>
 
             <div className="flex justify-between items-center mb-8 border-b-2 border-gray-700 pb-4">
