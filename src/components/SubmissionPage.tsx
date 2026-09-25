@@ -10,8 +10,6 @@ export function SubmissionPage({ onBack }: Props) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
 
-    const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1464529562892238940/5ymns0g7JuRznwFfWIDQnYfJMkuGhr54lKCcRqrApcI90U3dFkc1409BEB14Ex8f7Lun";
-
     const getCategoryStyles = (cat: string) => {
         switch (cat) {
             case 'CHAOS': return 'border-red-500 bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)]';
@@ -30,34 +28,19 @@ export function SubmissionPage({ onBack }: Props) {
 
         setIsSubmitting(true);
 
-        const payload = {
-            embeds: [{
-                title: "📌 新しい縛りアイデアの投稿",
-                color: category === 'CHAOS' ? 0xEF4444 : 
-                       category === 'Epic' ? 0xA855F7 : 
-                       category === 'Exotic' ? 0x22C55E :
-                       category === 'Extra' ? 0xEAB308 :
-                       category === 'Unique' ? 0xEC4899 : 0x22D3EE,
-                fields: [
-                    { name: "レアリティ", value: category, inline: true },
-                    { name: "内容", value: text }
-                ],
-                footer: { text: "Protocol Archive Suggestion" },
-                timestamp: new Date().toISOString()
-            }]
-        };
-
         try {
-            const response = await fetch(DISCORD_WEBHOOK_URL, {
+            const response = await fetch("/api/submit", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ category, text })
             });
 
             if (response.ok) {
                 setIsSuccess(true);
                 setText('');
                 setTimeout(() => setIsSuccess(false), 5000);
+            } else {
+                alert("送信に失敗しました。時間をおいて再度お試しください。");
             }
         } catch (error) {
             alert("通信エラーが発生しました。");
@@ -115,6 +98,7 @@ export function SubmissionPage({ onBack }: Props) {
                         onChange={(e) => setText(e.target.value)}
                         placeholder="例: 全員ハンドガンのみで戦え"
                         className="w-full bg-black/60 border border-white/10 p-6 text-lg text-white placeholder:text-white/30 focus:outline-none focus:border-[#FF4655] transition-colors min-h-[180px] resize-none leading-relaxed"
+                        maxLength={500}
                         required
                     />
                 </div>

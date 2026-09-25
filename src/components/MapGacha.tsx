@@ -12,7 +12,8 @@ const MAPS = [
   { id: 'lotus', name: 'LOTUS', file: 'map_09_Lotus' },
   { id: 'sunset', name: 'SUNSET', file: 'map_10_Sunset' },
   { id: 'abyss', name: 'ABYSS', file: 'map_11_Abyss' },
-  { id: 'corrode', name: 'CORRODE', file: 'map_12_Corrode' }
+  { id: 'corrode', name: 'CORRODE', file: 'map_12_Corrode' },
+  { id: 'summit', name: 'SUMMIT', file: 'map_13_Summit' }
 ];
 
 interface Props {
@@ -157,7 +158,7 @@ export function MapGacha({ onBack }: Props) {
         </button>
       </header>
 
-      <div className="grid grid-cols-4 gap-4 mb-10">
+      <div className="flex flex-wrap gap-4 mb-10">
         {MAPS.map((map, idx) => {
           const isSelected = selectedIds.includes(map.id);
           const isPicked = pickedIds.includes(map.id);
@@ -172,6 +173,7 @@ export function MapGacha({ onBack }: Props) {
               key={map.id}
               onClick={() => toggleSelect(map.id)}
               className={`
+                w-[calc((100%-1rem)/2)] md:w-[calc((100%-2rem)/3)] lg:w-[calc((100%-4rem)/5)]
                 relative aspect-video flex items-end justify-center border-2 transition-all duration-200 cursor-pointer overflow-hidden
                 ${isExcluded ? 'border-transparent grayscale opacity-40' : 'border-white/10 hover:border-white/30'}
                 ${mode === 'PICK' && isSelected && !isPicked ? 'border-[#FF4655] shadow-[inset_0_0_15px_rgba(255,70,85,0.4)] ring-1 ring-[#FF4655]' : ''}
