@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from "react-router-dom";
 import bindsRaw from '../data/binds.json';
 // @ts-ignore
 import html2canvas from 'html2canvas';
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function BindsGallery({ onBack, onNavigateToSubmit }: Props) {
+  const navigate = useNavigate();
     const [selectedBind, setSelectedBind] = useState<{ text: string, category: string, id: number } | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const modalRef = useRef<HTMLDivElement>(null);
@@ -124,7 +126,7 @@ export function BindsGallery({ onBack, onNavigateToSubmit }: Props) {
             {/* ✅ 下部のホーム戻りボタン周りの pb-20 を pb-4 に変更 */}
             <div className="flex justify-center pb-4 pt-8">
                 <button 
-                    onClick={() => window.location.reload()} 
+                    onClick={() => navigate("/")} 
                     className="text-xs text-white/60 hover:text-white underline transition-colors uppercase tracking-[0.2em] font-bold"
                 >
                     ← Back to HOME

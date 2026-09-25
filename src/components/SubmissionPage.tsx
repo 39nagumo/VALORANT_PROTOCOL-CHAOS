@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { useNavigate } from "react-router-dom";
 
 interface Props {
     onBack: () => void;
 }
 
 export function SubmissionPage({ onBack }: Props) {
+  const navigate = useNavigate();
     const [category, setCategory] = useState('CHAOS');
     const [text, setText] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -125,7 +127,7 @@ export function SubmissionPage({ onBack }: Props) {
             {/* ✅ mt-16 を mt-6 に縮小して、共通フッターに近づけました */}
             <div className="mt-6 text-center">
                 <button 
-                    onClick={() => window.location.reload()} 
+                    onClick={() => navigate("/")} 
                     className="text-xs text-white/60 hover:text-white underline transition-colors uppercase tracking-[0.3em] font-bold"
                 >
                     ← Back to HOME

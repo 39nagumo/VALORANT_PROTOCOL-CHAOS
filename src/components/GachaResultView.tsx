@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
+import { useNavigate } from "react-router-dom";
 import { GachaResult } from '../logic/gacha';
 import { AgentCard } from './AgentCard';
 
@@ -24,6 +25,7 @@ export function GachaResultView({
   onNavigateToSubmit, // ✅ 追加
   shouldAnimate 
 }: Props) {
+  const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const [saving, setSaving] = useState(false);
   const [side, setSide] = useState<'ATTACKER' | 'DEFENDER'>('ATTACKER');
@@ -242,7 +244,7 @@ export function GachaResultView({
         {/* ✅ フッターの導線ボタン */}
         <div className="mt-6 flex items-center gap-12 border-t border-white/5 pt-6 w-full max-w-lg justify-center">
           <button 
-            onClick={() => window.location.reload()} 
+            onClick={() => navigate("/")} 
             className="text-[11px] font-black uppercase tracking-widest text-white/90 hover:text-white transition-colors"
           >
             ← Back to HOME

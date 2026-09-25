@@ -1,64 +1,103 @@
 import { useState, useCallback, useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { GachaSystem, GachaResult, Bind } from './logic/gacha';
 import { GachaForm } from './components/GachaForm';
 import { GachaResultView } from './components/GachaResultView';
 import { BindsGallery } from './components/BindsGallery';
 import { MapGacha } from './components/MapGacha';
 import { SubmissionPage } from './components/SubmissionPage';
+import { LandingPage } from './components/LandingPage';
+import { SubLinks } from './components/SubLinks';
 const logoImg = "/assets/CHAOS_fix.png";
 
-type ViewState = 'HOME' | 'RESULT' | 'GALLERY' | 'MAP' | 'SUBMIT';
+const SITE_TITLE = 'VALORANT Custom CHAOS Gacha';
+const PAGE_TITLES: Record<string, string> = {
+  '/gacha': 'ガチャ',
+  '/result': 'ガチャ結果',
+  '/maps': 'マップ選択',
+  '/binds': '縛り一覧',
+  '/submit': '縛りの投稿',
+};
+
+// ✅ 再読み込みやブラウザバックで結果が消えないよう、タブ内に一時保存する
+const STORAGE_KEY = 'chaos-gacha:session';
+
+function loadSession(): { result: GachaResult | null; names: string[] } {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // 保存できない環境では何もしない
+  }
+  return { result: null, names: ['', '', '', '', ''] };
+}
+
+function saveSession(result: GachaResult | null, names: string[]) {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ result, names }));
+  } catch {
+    // 保存できない環境では何もしない
+  }
+}
 
 function App() {
-  const [view, setView] = useState<ViewState>('HOME');
-  // ✅ 直前の画面を記録するためのStateを追加
-  const [prevView, setPrevView] = useState<ViewState>('HOME');
-  
-  const [result, setResult] = useState<GachaResult | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const path = location.pathname;
+
+  const [result, setResult] = useState<GachaResult | null>(() => loadSession().result);
   const [loading, setLoading] = useState(false);
-  const [currentNames, setCurrentNames] = useState<string[]>(['', '', '', '', '']);
+  const [currentNames, setCurrentNames] = useState<string[]>(() => loadSession().names);
   const [shouldAnimate, setShouldAnimate] = useState(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [view]);
+    const page = PAGE_TITLES[path];
+    document.title = page ? `${page} | ${SITE_TITLE}` : SITE_TITLE;
+  }, [path]);
 
-  // ✅ 画面遷移時に直前の画面を保存するラッパー関数
-  const handleNavigate = (nextView: ViewState) => {
-    setPrevView(view);
-    setView(nextView);
+  useEffect(() => {
+    saveSession(result, currentNames);
+  }, [result, currentNames]);
+
+  // ✅ サイト内から来た場合は1つ前へ、URL直打ちなどで履歴がない場合は代わりの画面へ
+  const goBack = (fallback: string) => {
+    if (location.key !== 'default') navigate(-1);
+    else navigate(fallback);
   };
+  const backFallback = result ? '/result' : '/';
 
   const handleRunGacha = useCallback(async (names: string[], lockedIndices: number[] = [], latestBinds?: Bind[]) => {
     if (loading) return;
     setLoading(true);
     setCurrentNames(names);
-    
+
     try {
       const finalNames = names.map((n, i) => n.trim() !== '' ? n : `Player ${i + 1}`);
       await new Promise(resolve => setTimeout(resolve, 600));
-      
+
       const system = new GachaSystem();
       const activeBinds = latestBinds || result?.binds;
-      
+
       const lockedBinds = (activeBinds && lockedIndices.length > 0)
-        ? lockedIndices.map(idx => ({ 
-            index: idx, 
-            bind: activeBinds[idx] 
+        ? lockedIndices.map(idx => ({
+            index: idx,
+            bind: activeBinds[idx]
           }))
         : undefined;
 
       const newRes = system.runGacha(finalNames, lockedBinds);
-      
+
       setShouldAnimate(true);
       setResult(newRes);
-      setView('RESULT');
+      // ✅ 結果画面での引き直しは履歴を増やさない
+      navigate('/result', { replace: path === '/result' });
     } catch (error) {
       console.error("Gacha execution failed:", error);
     } finally {
       setLoading(false);
     }
-  }, [loading, result]);
+  }, [loading, result, navigate, path]);
 
   const handleReRollAll = (lockedIndices: number[]) => {
     if (!result) return;
@@ -69,6 +108,8 @@ function App() {
     setShouldAnimate(false);
     setResult(newResult);
   };
+
+  const isCompactHeader = path !== '/' && path !== '/gacha';
 
   return (
     <div className="min-h-screen bg-[#0F1923] text-[#ECE8E1] font-sans selection:bg-[#FF4655] selection:text-white overflow-x-hidden relative">
@@ -82,7 +123,7 @@ function App() {
 
       <style dangerouslySetInnerHTML={{ __html: `
         .bind-box-uniform, .min-h-\\[130px\\], .min-h-\\[150px\\] {
-          height: 150px !important; 
+          height: 150px !important;
           min-height: 150px !important;
           display: flex !important;
           flex-direction: column !important;
@@ -109,83 +150,74 @@ function App() {
       )}
 
       <main className="relative z-10 container mx-auto px-4 py-8 max-w-7xl min-h-screen flex flex-col">
-        <header className={`transition-all duration-700 ease-out ${view === 'RESULT' || view === 'MAP' || view === 'SUBMIT' || view === 'GALLERY' ? 'mb-4 text-left flex items-end gap-6' : 'mb-0 mt-0 text-center'}`}>
-          <div className="inline-block relative">
-            <img 
-              src={logoImg} 
-              alt="CHAOS GACHA LOGO" 
+        <header className={`transition-all duration-700 ease-out ${isCompactHeader ? 'mb-4 text-left flex items-end gap-6' : 'mb-0 mt-0 text-center'}`}>
+          <button type="button" onClick={() => navigate('/')} className="inline-block relative" aria-label="トップへ">
+            <img
+              src={logoImg}
+              alt="CHAOS GACHA LOGO"
               className={`transition-all duration-500 object-contain mx-auto ${
-                view === 'RESULT' || view === 'MAP' || view === 'SUBMIT' || view === 'GALLERY' 
-                  ? 'h-16 md:h-20' 
-                  : 'h-40 md:h-64' 
-              }`} 
+                isCompactHeader
+                  ? 'h-16 md:h-20'
+                  : 'h-40 md:h-64'
+              }`}
             />
-          </div>
+          </button>
         </header>
 
         <div className="flex-grow">
-          {view === 'HOME' && (
-            <div className="animate-in fade-in slide-in-from-bottom-12 duration-1000 max-w-2xl mx-auto">
-              <div className="relative group">
-                <div className="absolute -top-2 -left-2 w-8 h-8 border-t-2 border-l-2 border-[#FF4655] z-20" />
-                <div className="absolute -bottom-2 -right-2 w-8 h-8 border-b-2 border-r-2 border-[#FF4655] z-20" />
-                <div className="relative bg-[#172129]/90 border border-white/10 p-8 md:p-12 backdrop-blur-2xl shadow-2xl">
-                  <GachaForm onSubmit={(names) => handleRunGacha(names)} loading={loading} />
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+
+            <Route path="/gacha" element={
+              <div className="animate-in fade-in slide-in-from-bottom-12 duration-1000 max-w-2xl mx-auto">
+                <div className="relative group">
+                  <div className="absolute -top-2 -left-2 w-8 h-8 border-t-2 border-l-2 border-[#FF4655] z-20" />
+                  <div className="absolute -bottom-2 -right-2 w-8 h-8 border-b-2 border-r-2 border-[#FF4655] z-20" />
+                  <div className="relative bg-[#172129]/90 border border-white/10 p-8 md:p-12 backdrop-blur-2xl shadow-2xl">
+                    <GachaForm onSubmit={(names) => handleRunGacha(names)} loading={loading} initialNames={currentNames} />
+                  </div>
                 </div>
+                <SubLinks />
               </div>
-              
-              <div className="mt-12 flex flex-wrap justify-center gap-8">
-                <button onClick={() => handleNavigate('MAP')} className="group relative flex items-center gap-4 px-8 py-3 text-[11px] font-black tracking-[0.25em] uppercase transition-all">
-                  <span className="relative z-10 text-white/40 group-hover:text-white transition-colors">Map Selection</span>
-                  <div className="w-8 h-px bg-[#FF4655] relative z-10 group-hover:w-12 transition-all" />
-                </button>
-                <button onClick={() => handleNavigate('GALLERY')} className="group relative flex items-center gap-4 px-8 py-3 text-[11px] font-black tracking-[0.25em] uppercase transition-all">
-                  <span className="relative z-10 text-white/40 group-hover:text-white transition-colors">Binds Database</span>
-                  <div className="w-8 h-px bg-[#FF4655] relative z-10 group-hover:w-12 transition-all" />
-                </button>
-                <button onClick={() => handleNavigate('SUBMIT')} className="group relative flex items-center gap-4 px-8 py-3 text-[11px] font-black tracking-[0.25em] uppercase transition-all">
-                  <span className="relative z-10 text-white/40 group-hover:text-white transition-colors">Suggest a Bind</span>
-                  <div className="w-8 h-px bg-[#FF4655] relative z-10 group-hover:w-12 transition-all" />
-                </button>
+            } />
+
+            <Route path="/result" element={result ? (
+              <div className="animate-in fade-in zoom-in-95 duration-700">
+                <GachaResultView
+                  result={result}
+                  onRetry={handleReRollAll}
+                  onUpdateResult={handleUpdateResult}
+                  onViewBinds={() => navigate('/binds')}
+                  onViewMap={() => navigate('/maps')}
+                  onNavigateToSubmit={() => navigate('/submit')}
+                  shouldAnimate={shouldAnimate}
+                />
               </div>
-            </div>
-          )}
+            ) : <Navigate to="/gacha" replace />} />
 
-          {view === 'RESULT' && result && (
-            <div className="animate-in fade-in zoom-in-95 duration-700">
-              <GachaResultView 
-                result={result} 
-                onRetry={handleReRollAll} 
-                onUpdateResult={handleUpdateResult}
-                onViewBinds={() => handleNavigate('GALLERY')} 
-                onViewMap={() => handleNavigate('MAP')} 
-                onNavigateToSubmit={() => handleNavigate('SUBMIT')}
-                shouldAnimate={shouldAnimate} 
-              />
-            </div>
-          )}
+            <Route path="/binds" element={
+              <div className="animate-in slide-in-from-bottom-8 duration-700 h-full">
+                <BindsGallery
+                  onBack={() => goBack(backFallback)}
+                  onNavigateToSubmit={() => navigate('/submit')}
+                />
+              </div>
+            } />
 
-          {view === 'GALLERY' && (
-            <div className="animate-in slide-in-from-bottom-8 duration-700 h-full">
-              <BindsGallery 
-                onBack={() => setView(result ? 'RESULT' : 'HOME')} 
-                onNavigateToSubmit={() => handleNavigate('SUBMIT')} 
-              />
-            </div>
-          )}
+            <Route path="/maps" element={
+              <div className="animate-in slide-in-from-right-8 duration-700">
+                <MapGacha onBack={() => goBack(backFallback)} />
+              </div>
+            } />
 
-          {view === 'MAP' && (
-            <div className="animate-in slide-in-from-right-8 duration-700">
-              <MapGacha onBack={() => setView(result ? 'RESULT' : 'HOME')} />
-            </div>
-          )}
+            <Route path="/submit" element={
+              <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+                <SubmissionPage onBack={() => goBack('/')} />
+              </div>
+            } />
 
-          {view === 'SUBMIT' && (
-            <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
-              {/* ✅ onBackでprevViewへ戻るように修正 */}
-              <SubmissionPage onBack={() => setView(prevView)} />
-            </div>
-          )}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </div>
 
         <footer className="mt-auto py-12 text-center relative">
@@ -201,9 +233,9 @@ function App() {
 
             <div className="flex flex-col items-center gap-3 text-[10px] font-black tracking-[0.2em] text-gray-600">
               <p>© 2026 PROTOCOL:CHAOS</p>
-              <a 
-                href="https://x.com/39nagumo" 
-                target="_blank" 
+              <a
+                href="https://x.com/39nagumo"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-[#FF4655] transition-colors duration-300 flex items-center justify-center gap-2 border border-white/5 px-4 py-2 bg-white/5"
               >

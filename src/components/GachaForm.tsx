@@ -3,10 +3,11 @@ import { useState } from 'react';
 interface Props {
     onSubmit: (names: string[]) => void;
     loading: boolean;
+    initialNames?: string[];
 }
 
-export function GachaForm({ onSubmit, loading }: Props) {
-    const [names, setNames] = useState<string[]>(['', '', '', '', '']);
+export function GachaForm({ onSubmit, loading, initialNames }: Props) {
+    const [names, setNames] = useState<string[]>(() => initialNames ? initialNames.map(n => (/^Player \d$/.test(n) ? "" : n)) : ["", "", "", "", ""]);
 
     const handleChange = (index: number, val: string) => {
         const newNames = [...names];

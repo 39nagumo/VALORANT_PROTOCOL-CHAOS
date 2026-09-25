@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from "react-router-dom";
 
 const MAPS = [
   { id: 'ascent', name: 'ASCENT', file: 'map_01_Ascent' },
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export function MapGacha({ onBack }: Props) {
+  const navigate = useNavigate();
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -255,7 +257,7 @@ export function MapGacha({ onBack }: Props) {
           </div>
 
           <button 
-            onClick={() => window.location.reload()} 
+            onClick={() => navigate("/")} 
             className="text-xs text-white/60 hover:text-white underline transition-colors uppercase tracking-widest"
           >
             ← Back to HOME
