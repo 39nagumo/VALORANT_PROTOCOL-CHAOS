@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "chaos-gacha-rooms",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "durable_objects": {
+    "bindings": [
+      { "name": "ROOM", "class_name": "Room" },
+      { "name": "USER", "class_name": "UserHub" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room", "UserHub"] }],
+  "vars": {
+    // 本番でルームを作れるサイトのオリジン（カンマ区切り）。ローカルは Vite のプロキシ経由なので不要
+    "ALLOWED_ORIGINS": "https://valorant-protocol-chaos.vercel.app"
+  },
+  "observability": { "enabled": true }
+}

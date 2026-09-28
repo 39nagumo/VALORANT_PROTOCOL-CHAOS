@@ -1,0 +1,14 @@
+{
+  "name": "chaos-gacha-rooms",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260926.1",
+    "typescript": "^5.2.2",
+    "wrangler": "^4.142.0"
+  }
+}

@@ -8,6 +8,7 @@ import { MapGacha } from './components/MapGacha';
 import { SubmissionPage } from './components/SubmissionPage';
 import { LandingPage } from './components/LandingPage';
 import { SubLinks } from './components/SubLinks';
+import { CreateRoomButton, RoomPage } from './room/RoomPage';
 const logoImg = "/assets/CHAOS_fix.png";
 
 const SITE_TITLE = 'VALORANT Custom CHAOS Gacha';
@@ -52,7 +53,7 @@ function App() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    const page = PAGE_TITLES[path];
+    const page = PAGE_TITLES[path] ?? (path.startsWith('/r/') ? 'ルーム' : undefined);
     document.title = page ? `${page} | ${SITE_TITLE}` : SITE_TITLE;
   }, [path]);
 
@@ -177,9 +178,12 @@ function App() {
                     <GachaForm onSubmit={(names) => handleRunGacha(names)} loading={loading} initialNames={currentNames} />
                   </div>
                 </div>
+                <CreateRoomButton />
                 <SubLinks />
               </div>
             } />
+
+            <Route path="/r/:roomId" element={<RoomPage />} />
 
             <Route path="/result" element={result ? (
               <div className="animate-in fade-in zoom-in-95 duration-700">
