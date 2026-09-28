@@ -6,13 +6,20 @@
   "durable_objects": {
     "bindings": [
       { "name": "ROOM", "class_name": "Room" },
-      { "name": "USER", "class_name": "UserHub" }
+      { "name": "USER", "class_name": "UserHub" },
+      { "name": "LIMITER", "class_name": "Limiter" }
     ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room", "UserHub"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Room", "UserHub"] },
+    { "tag": "v2", "new_sqlite_classes": ["Limiter"] }
+  ],
   "vars": {
     // 本番でルームを作れるサイトのオリジン（カンマ区切り）。ローカルは Vite のプロキシ経由なので不要
-    "ALLOWED_ORIGINS": "https://valorant-protocol-chaos.vercel.app"
+    "ALLOWED_ORIGINS": "https://valorant-protocol-chaos.vercel.app",
+    // ルームを作れる数の上限（無料枠を使い切られないための保険。有料プランにしたら1日の上限は上げてよい）
+    "ROOM_LIMIT_PER_IP_HOUR": "5",
+    "ROOM_LIMIT_PER_DAY": "700"
   },
   "observability": { "enabled": true }
 }

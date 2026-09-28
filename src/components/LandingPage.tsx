@@ -12,10 +12,10 @@ const STEPS = [
 export function LandingPage() {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
   const startRoom = async () => {
-    setBusy(true); setFailed(false);
-    try { navigate(`/r/${await createRoom()}`); } catch { setFailed(true); } finally { setBusy(false); }
+    setBusy(true); setFailed(null);
+    try { navigate(`/r/${await createRoom()}`); } catch (e) { setFailed((e as Error).message); } finally { setBusy(false); }
   };
 
   return (
@@ -49,7 +49,7 @@ export function LandingPage() {
           ルーム＝みんなで同じ結果を見る・配信に映す　／　ひとりで回す＝今までどおり画像で共有<br />
           ルームの操作は代表1人でOK。ほかの人は参加してOBSにURLを入れるだけです。
         </p>
-        {failed && <p className="text-[#FF4655] text-sm mt-3">ルームを作れませんでした。時間をおいてもう一度お試しください。</p>}
+        {failed && <p className="text-[#FF4655] text-sm mt-3">{failed}</p>}
       </section>
 
       <section>

@@ -11,7 +11,10 @@ import {
 export interface Env {
   ROOM: DurableObjectNamespace<Room>;
   USER: DurableObjectNamespace<UserHub>;
+  LIMITER: DurableObjectNamespace<Limiter>;
   ALLOWED_ORIGINS: string;
+  ROOM_LIMIT_PER_IP_HOUR: string;
+  ROOM_LIMIT_PER_DAY: string;
 }
 
 // 使い終わったルームは、最後の操作からこの時間で自動的に消える
@@ -367,6 +370,26 @@ export class UserHub extends DurableObject<Env> {
 // 本番URLに加えて、Vercelのプレビュー用URL（valorant-protocol-chaos-….vercel.app）も許可する
 const PREVIEW_ORIGIN = /^https:\/\/valorant-protocol-chaos-[a-z0-9-]+\.vercel\.app$/;
 
+/** 回数制限：直近 windowMs の間に limit 回まで。超えたら、次に使えるまでのミリ秒を返す */
+export class Limiter extends DurableObject<Env> {
+  async hit(limit: number, windowMs: number): Promise<{ ok: boolean; retryAfterMs: number }> {
+    const now = Date.now();
+    const times = ((await this.ctx.storage.get<number[]>('times')) ?? []).filter(t => now - t < windowMs);
+    if (times.length >= limit) {
+      return { ok: false, retryAfterMs: windowMs - (now - times[0]) };
+    }
+    times.push(now);
+    await this.ctx.storage.put('times', times);
+    // 使われなくなったら記録を消す
+    await this.ctx.storage.setAlarm(now + windowMs);
+    return { ok: true, retryAfterMs: 0 };
+  }
+
+  async alarm(): Promise<void> {
+    await this.ctx.storage.deleteAll();
+  }
+}
+
 function cors(request: Request, env: Env): Record<string, string> {
   const origin = request.headers.get('Origin') ?? '';
   const allowed = env.ALLOWED_ORIGINS.split(',').map(s => s.trim());
@@ -385,6 +408,16 @@ export default {
 
     // POST /rs/rooms → 新しいルームを作る
     if (parts[1] === 'rooms' && parts.length === 2 && request.method === 'POST') {
+      // 同じ回線（IP）から1時間に5個まで、サイト全体で1日700個まで（無料枠の1日10万リクエストに収まる目安）
+      const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+      const perIp = await env.LIMITER.getByName(`ip:${ip}`).hit(Number(env.ROOM_LIMIT_PER_IP_HOUR) || 5, 60 * 60 * 1000);
+      if (!perIp.ok) {
+        return Response.json({ error: 'too_many', retryAfterMin: Math.ceil(perIp.retryAfterMs / 60000) }, { status: 429, headers: cors(request, env) });
+      }
+      const total = await env.LIMITER.getByName('all').hit(Number(env.ROOM_LIMIT_PER_DAY) || 700, 24 * 60 * 60 * 1000);
+      if (!total.ok) {
+        return Response.json({ error: 'busy', retryAfterMin: Math.ceil(total.retryAfterMs / 60000) }, { status: 429, headers: cors(request, env) });
+      }
       const roomId = newRoomId();
       await env.ROOM.getByName(roomId).init(roomId);
       return Response.json({ roomId }, { headers: cors(request, env) });

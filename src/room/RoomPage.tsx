@@ -33,7 +33,7 @@ async function copy(text: string) {
 export function CreateRoomButton() {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
   return (
     <div className="mt-10 bg-[#172129]/90 border border-white/10 p-6 text-center">
       <p className="text-[#46CBFF] text-[11px] font-black tracking-[0.4em] uppercase mb-2">Room / OBS</p>
@@ -44,14 +44,14 @@ export function CreateRoomButton() {
       <button
         disabled={busy}
         onClick={async () => {
-          setBusy(true); setFailed(false);
-          try { navigate(`/r/${await createRoom()}`); } catch { setFailed(true); } finally { setBusy(false); }
+          setBusy(true); setFailed(null);
+          try { navigate(`/r/${await createRoom()}`); } catch (e) { setFailed((e as Error).message); } finally { setBusy(false); }
         }}
         className="bg-[#46CBFF] hover:bg-[#2fb5ea] text-[#0F1923] font-black py-3 px-10 tracking-[0.2em] text-sm disabled:opacity-50"
       >
         {busy ? '作成中…' : 'ルームを作る'}
       </button>
-      {failed && <p className="text-[#FF4655] text-sm mt-3">ルームを作れませんでした。時間をおいてもう一度お試しください。</p>}
+      {failed && <p className="text-[#FF4655] text-sm mt-3">{failed}</p>}
     </div>
   );
 }

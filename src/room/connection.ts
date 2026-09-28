@@ -10,9 +10,22 @@ const wsUrl = (path: string) => {
   return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${path}`;
 };
 
+/** ルームを作る。作れなかったときは、画面にそのまま出せる理由を投げる */
 export async function createRoom(): Promise<string> {
-  const res = await fetch(`${SERVER}/rs/rooms`, { method: 'POST' });
-  if (!res.ok) throw new Error(`room create failed: ${res.status}`);
+  let res: Response;
+  try {
+    res = await fetch(`${SERVER}/rs/rooms`, { method: 'POST' });
+  } catch {
+    throw new Error('ルームを作れませんでした。通信を確認して、もう一度お試しください。');
+  }
+  if (res.status === 429) {
+    const body = await res.json().catch(() => ({}));
+    const min = body.retryAfterMin ?? 60;
+    throw new Error(body.error === 'busy'
+      ? `今日はルームがたくさん作られたため、いったん受付を止めています（約${min}分後に再開）。`
+      : `ルームを作れるのは1時間に5個までです。約${min}分後にもう一度お試しください。`);
+  }
+  if (!res.ok) throw new Error('ルームを作れませんでした。時間をおいてもう一度お試しください。');
   return (await res.json()).roomId;
 }
 
