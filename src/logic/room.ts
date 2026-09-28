@@ -3,6 +3,7 @@ import type { Agent, Bind } from './gacha';
 
 export type Side = 'ATK' | 'DEF';
 export type Seat = Side | 'WATCH';
+export type MapMode = 'PICK' | 'BAN';
 
 export const TEAM_SIZE = 5;
 
@@ -35,7 +36,9 @@ export interface RoomState {
   members: Member[];
   teams: { ATK: TeamRoll | null; DEF: TeamRoll | null };
   map: string | null;
-  mapBans: string[];
+  /** PICK＝印を付けたマップから選ぶ／BAN＝印を付けたマップを除いて選ぶ（元のマップ抽選と同じ） */
+  mapMode: MapMode;
+  mapMarks: string[];
   mapHistory: string[];
   event: RoomEvent | null;
   /** OBSに出し続けている抽選結果の画面（誰かが閉じるまで残る） */
@@ -62,7 +65,8 @@ export type ClientMessage =
   | { type: 'randomTeams' }
   | { type: 'roll'; side: Side }
   | { type: 'reroll'; side: Side; index: number; target: 'agent' | 'bind' }
-  | { type: 'mapBan'; mapId: string }
+  | { type: 'mapMode'; mode: MapMode }
+  | { type: 'mapMark'; mapId: string }
   | { type: 'mapRoll' }
   | { type: 'mapClearHistory' }
   | { type: 'closeDisplay' }
@@ -80,3 +84,10 @@ export type ServerMessage =
 export const UID_PATTERN = /^[a-z0-9]{16,40}$/;
 export const ROOM_PATTERN = /^[a-z0-9]{6,16}$/;
 export const NAME_MAX = 16;
+
+/** 次に回すマップの候補（一度出たマップは外す） */
+export function mapPool(allIds: string[], s: Pick<RoomState, 'mapMode' | 'mapMarks' | 'mapHistory'>): string[] {
+  const marks = s.mapMarks ?? [];
+  const base = s.mapMode === 'PICK' ? allIds.filter(id => marks.includes(id)) : allIds.filter(id => !marks.includes(id));
+  return base.filter(id => !(s.mapHistory ?? []).includes(id));
+}

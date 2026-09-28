@@ -1,12 +1,8 @@
-import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { Agent, Bind } from '../logic/gacha';
 import { agentsOfRole, bindsOfRarity } from '../logic/reroll';
 import { MAPS, mapImage } from '../data/maps';
-import {
-  RoomEvent, Side, TeamRoll, TeamSlot,
-  TEAM_INTRO_MS, TEAM_STEP_MS,
-  MAP_SPIN_MS,
-} from '../logic/room';
+import { RoomEvent, Side, TeamRoll, TeamSlot, TEAM_INTRO_MS, TEAM_STEP_MS, MAP_SPIN_MS } from '../logic/room';
 import './room.css';
 
 // 1人ぶんの演出の中の区切り（TEAM_STEP_MS の中で）
@@ -15,9 +11,14 @@ const BIND_STOP = 625;  // 縛りの文字が確定する
 // 振り直しの演出の中の区切り（REROLL_MS の中で）
 const REROLL_STOP = 550;
 
+const LOGO = '/assets/CHAOS_fix.png';
+
 export const SIDE_LABEL: Record<Side, string> = { ATK: 'ATTACKER', DEF: 'DEFENDER' };
 export const ROLE_LABEL: Record<Agent['role'], string> = {
   Duelist: 'DUELIST', Initiator: 'INITIATOR', Controller: 'CONTROLLER', Sentinel: 'SENTINEL',
+};
+export const RARITY_COLOR: Record<Bind['rarity'], string> = {
+  CHAOS: '#FF4655', Epic: '#c084fc', Exotic: '#4ade80', Unique: '#f472b6', Special: '#22d3ee', Extra: '#facc15',
 };
 
 /** 同じイベントなら、どの画面でも同じ値になる乱数 */
@@ -62,27 +63,37 @@ export function RarityBadge({ rarity, size = 'md' }: { rarity: Bind['rarity']; s
   return <span className={`cr-badge cr-r-${rarity} ${size === 'sm' ? 'cr-badge-sm' : ''}`}>{rarity.toUpperCase()}</span>;
 }
 
+/** 左上の見出し：ロゴ＋何の抽選か＋回した人 */
+function Header({ label, tone, by, t }: { label: string; tone: 'ATK' | 'DEF' | 'MAP'; by: string; t: number }) {
+  const logoIn = Math.max(0, Math.min(1, t / 250));
+  const tagIn = Math.max(0, Math.min(1, (t - 120) / 220));
+  return (
+    <div className="cr-head">
+      <div className="cr-logo" style={{ opacity: logoIn, transform: `scale(${0.8 + logoIn * 0.2}) rotate(${(1 - logoIn) * -6}deg)` }}>
+        <img src={LOGO} alt="CHAOSガチャ" />
+      </div>
+      <div className="cr-head-right" style={{ opacity: tagIn, transform: `translateX(${(1 - tagIn) * -30}px)` }}>
+        <div className={`cr-tag cr-tag-${tone}`}>{label}</div>
+        <div className="cr-by">抽選：<b>{by}</b></div>
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- チーム抽選
 
 export function TeamReveal({ roll, event, t, reroll, meId }: {
   roll: TeamRoll;
   event: Extract<RoomEvent, { kind: 'team' }>;
   t: number;
-  /** 見ている本人。その人のカードにだけ縁取りを付ける */
-  meId?: string | null;
   /** 結果画面を出したまま振り直したとき、その枠だけ回す */
   reroll?: ({ index: number } & RerollAnim) | null;
+  /** 見ている本人。その人のカードだけ光らせる */
+  meId?: string | null;
 }) {
-  const intro = Math.max(0, Math.min(1, t / 300));
-
   return (
     <div className={`cr-reveal cr-side-${roll.side}`}>
-      <h1 className="cr-title" style={{ opacity: intro, transform: `translateX(${(1 - intro) * -80}px) skewX(-8deg)` }}>
-        MISSION PROTOCOL / {SIDE_LABEL[roll.side]}
-      </h1>
-      <div className="cr-sub" style={{ opacity: intro }}>5 AGENTS + CONSTRAINTS</div>
-      <div className="cr-by" style={{ opacity: intro }}>抽選した人：{event.by}</div>
-
+      <Header label={SIDE_LABEL[roll.side]} tone={roll.side} by={event.by} t={t} />
       <div className="cr-cards">
         {roll.slots.map((slot, i) => (
           <RevealCard key={slot.memberId} slot={slot} seed={`${event.id}:${i}`}
@@ -98,14 +109,16 @@ function RevealCard({ slot, seed, local, reroll, mine }: {
   slot: TeamSlot; seed: string; local: number; reroll: RerollAnim | null; mine: boolean;
 }) {
   const pool = useMemo(() => agentsOfRole(slot.agent.role), [slot.agent.role]);
+  const enter = Math.max(0, Math.min(1, (local + 250) / 250));
+  const style = { '--rc': RARITY_COLOR[slot.bind.rarity] } as CSSProperties;
+
   if (local < 0) {
     return (
-      <div className={`cr-card cr-wait ${mine ? 'cr-me' : ''}`}>
-        <div className="cr-pname">{slot.name}</div>
-        <div className="cr-aname">―</div>
-        <div className="cr-role">WAITING</div>
-        <div className="cr-img cr-img-q">?</div>
-        <div className="cr-bind" />
+      <div className="cr-slot" style={{ ...style, opacity: 0.35 + enter * 0.4, transform: `translateY(${(1 - enter) * 30}px)` }}>
+        <div className="cr-card cr-wait">
+          <div className="cr-art cr-art-q"><span>?</span><div className="cr-pname">{slot.name}</div></div>
+          <div className="cr-bind" />
+        </div>
       </div>
     );
   }
@@ -116,34 +129,37 @@ function RevealCard({ slot, seed, local, reroll, mine }: {
   const bindSpin = re ? re.target === 'bind' && re.t < REROLL_STOP : local < BIND_STOP;
   const faceSince = re ? (re.target === 'agent' ? re.t - REROLL_STOP : Infinity) : local - FACE_STOP;
   const bindSince = re ? (re.target === 'bind' ? re.t - REROLL_STOP : Infinity) : local - BIND_STOP;
-  const spinT = re ? re.t : local;
+  const spinT = Math.max(0, re ? re.t : local);
   const spinSeed = re ? re.seed : seed;
 
-  const tick = Math.floor(Math.max(0, spinT) / 60);
-  const face = faceSpin ? pool[Math.floor(rand(spinSeed, tick) * pool.length)] : slot.agent;
+  const face = faceSpin ? pool[Math.floor(rand(spinSeed, Math.floor(spinT / 60)) * pool.length)] : slot.agent;
   const faceFlash = !faceSpin ? Math.max(0, 1 - faceSince / 250) : 0;
-  const pop = !faceSpin && faceSince < 200 ? 1 + 0.06 * (1 - faceSince / 200) : 1;
-  const bindFlash = !bindSpin ? Math.max(0, 1 - bindSince / 300) : 0;
-  const badgeOn = re || local >= 125;
-  // 自分のカードの縁取りは、縛りが決まったらそのレア度の色になる
-  const meClass = mine ? (bindSpin ? 'cr-me' : `cr-me cr-me-${slot.bind.rarity}`) : '';
+  const pop = !faceSpin && faceSince < 220 ? 1 + 0.05 * Math.sin((faceSince / 220) * Math.PI) : 1;
+  const bindFlash = !bindSpin ? Math.max(0, 1 - bindSince / 350) : 0;
+  const badgeOn = !!re || local >= 125;
+  // 本人のカードは、縛りが決まったらレア度の色でふわっと光り続ける
+  const glow = mine && !bindSpin;
 
   return (
-    <div className={`cr-card ${faceSpin || bindSpin ? 'cr-spin' : 'cr-fixed'} ${meClass}`}
-      style={{ transform: `scale(${pop})` }}>
-      <div className="cr-pname">{slot.name}</div>
-      <div className="cr-aname">{faceSpin ? '？？？' : slot.agent.name}</div>
-      <div className={`cr-role cr-role-${slot.agent.role}`}>{ROLE_LABEL[slot.agent.role]}</div>
-      <div className="cr-img">
-        <img src={face.image} alt="" className={faceSpin ? 'cr-blur' : ''} />
-        {faceFlash > 0 && <div className="cr-flash-white" style={{ opacity: faceFlash }} />}
-      </div>
-      <div className={`cr-bind ${badgeOn && bindSpin ? `cr-glow-${slot.bind.rarity}` : ''}`}>
-        {badgeOn && <RarityBadge rarity={slot.bind.rarity} />}
-        {bindFlash > 0 && <div className={`cr-bind-flash cr-bf-${slot.bind.rarity}`} style={{ opacity: bindFlash }} />}
-        <p className={bindSpin ? 'cr-rolling' : ''}>
-          {!bindSpin ? slot.bind.text : badgeOn ? rollingBind(slot.bind.rarity, spinSeed, Math.floor(Math.max(0, spinT) / 90)) : ''}
-        </p>
+    <div className={`cr-slot ${glow ? 'cr-glow' : ''}`} style={{ ...style, transform: `scale(${pop})` }}>
+      <div className={`cr-card ${faceSpin || bindSpin ? 'cr-spinning' : ''}`}>
+        <div className="cr-art">
+          <img src={face.image} alt="" className={faceSpin ? 'cr-blur' : ''} />
+          <div className="cr-art-fade" />
+          <div className="cr-pname">{slot.name}</div>
+          <div className="cr-agent">
+            <span className={`cr-role cr-role-${slot.agent.role}`}>{ROLE_LABEL[slot.agent.role]}</span>
+            <span className="cr-aname">{faceSpin ? '？？？' : slot.agent.name}</span>
+          </div>
+          {faceFlash > 0 && <div className="cr-flash-white" style={{ opacity: faceFlash }} />}
+        </div>
+        <div className={`cr-bind ${badgeOn && bindSpin ? 'cr-bind-rolling' : ''}`}>
+          {badgeOn && <RarityBadge rarity={slot.bind.rarity} />}
+          <p className={bindSpin ? 'cr-rolling' : ''}>
+            {!bindSpin ? slot.bind.text : badgeOn ? rollingBind(slot.bind.rarity, spinSeed, Math.floor(spinT / 90)) : ''}
+          </p>
+          {bindFlash > 0 && <div className="cr-bind-flash" style={{ opacity: bindFlash }} />}
+        </div>
       </div>
     </div>
   );
@@ -176,28 +192,24 @@ export function MapReveal({ event, t }: { event: Extract<RoomEvent, { kind: 'map
   while (k + 1 < times.length && times[k + 1] <= t) k++;
   const current = t < 0 ? -1 : seq[k];
   const stopped = t >= MAP_SPIN_MS;
-  const big = Math.max(0, Math.min(1, (t - MAP_SPIN_MS - 150) / 300));
-  const result = pool[resultIndex];
+  const winFlash = stopped ? Math.max(0, 1 - (t - MAP_SPIN_MS) / 400) : 0;
 
   return (
     <div className="cr-reveal cr-side-MAP">
-      <h1 className="cr-title" style={{ transform: 'skewX(-8deg)' }}>MAP SELECTION</h1>
-      <div className="cr-by">抽選した人：{event.by}</div>
-      <div className="cr-maps" style={{ opacity: 1 - big * 0.85 }}>
-        {pool.map((m, i) => (
-          <div key={m.id} className={`cr-map ${i === current ? (stopped ? 'cr-map-win' : 'cr-map-hit') : ''}`}>
-            <img src={mapImage(m)} alt="" />
-            <span>{m.name}</span>
-          </div>
-        ))}
+      <Header label="MAP" tone="MAP" by={event.by} t={t} />
+      <div className={`cr-maps ${stopped ? 'cr-maps-done' : ''}`}>
+        {pool.map((m, i) => {
+          const hit = i === current;
+          return (
+            <div key={m.id} className={`cr-map ${hit ? (stopped ? 'cr-map-win' : 'cr-map-hit') : ''}`}>
+              <img src={mapImage(m)} alt="" />
+              <span>{m.name}</span>
+              {hit && stopped && <div className="cr-map-pick">PICK!</div>}
+              {hit && winFlash > 0 && <div className="cr-flash-white" style={{ opacity: winFlash * 0.8 }} />}
+            </div>
+          );
+        })}
       </div>
-      {big > 0 && result && (
-        <div className="cr-map-big" style={{ opacity: big, transform: `translate(-50%, -50%) scale(${0.85 + big * 0.15})` }}>
-          <img src={mapImage(result)} alt="" />
-          <div className="cr-map-big-name">{result.name}</div>
-          {big < 1 && <div className="cr-flash-white" style={{ opacity: 1 - big }} />}
-        </div>
-      )}
     </div>
   );
 }
@@ -219,14 +231,15 @@ export function MyCard({ slot, side, reroll }: {
 
   return (
     // 攻守は後半で入れ替わるので文字では出さず、左の色だけで最初の陣営を示す
-    <div className={`cr-mine cr-mine-${side}`}>
+    <div className={`cr-mine cr-mine-${side}`} style={{ '--rc': RARITY_COLOR[slot.bind.rarity] } as CSSProperties}>
       <div className="cr-mine-face">
         <img src={face.image} alt="" className={spinning && reroll.target === 'agent' ? 'cr-blur' : ''} />
       </div>
       <div className="cr-mine-txt">
-        <div className="cr-mine-who">{slot.name}</div>
-        <div className="cr-mine-ag">{spinning && reroll.target === 'agent' ? '？？？' : slot.agent.name}</div>
-        <RarityBadge rarity={slot.bind.rarity} size="sm" />
+        <div className="cr-mine-head">
+          <span className="cr-mine-ag">{spinning && reroll.target === 'agent' ? '？？？' : slot.agent.name}</span>
+          <RarityBadge rarity={slot.bind.rarity} size="sm" />
+        </div>
         <p className={spinning && reroll.target === 'bind' ? 'cr-rolling' : ''}>{text}</p>
       </div>
       {flash > 0 && <div className="cr-flash-white" style={{ opacity: flash * 0.8 }} />}

@@ -5,7 +5,7 @@ import { MAPS } from '../../src/data/maps';
 import {
   ClientMessage, Member, RoomEvent, RoomState, ServerMessage, Side, TeamRoll,
   TEAM_SIZE, EVENT_LEAD_MS, eventDuration,
-  UID_PATTERN, ROOM_PATTERN, NAME_MAX,
+  UID_PATTERN, ROOM_PATTERN, NAME_MAX, mapPool,
 } from '../../src/logic/room';
 
 export interface Env {
@@ -42,7 +42,8 @@ const emptyState = (): RoomState => ({
   members: [],
   teams: { ATK: null, DEF: null },
   map: null,
-  mapBans: [],
+  mapMode: 'BAN',
+  mapMarks: [],
   mapHistory: [],
   event: null,
   display: null,
@@ -223,15 +224,23 @@ export class Room extends DurableObject<Env> {
         this.startEvent({ kind: 'reroll', id: crypto.randomUUID(), side: msg.side, index: msg.index, target: msg.target, startedAt: now + EVENT_LEAD_MS, by });
         break;
       }
-      case 'mapBan': {
+      case 'mapMode':
+        if (msg.mode !== 'PICK' && msg.mode !== 'BAN') return;
+        if (s.mapMode !== msg.mode) { s.mapMode = msg.mode; s.mapMarks = []; }
+        break;
+      case 'mapMark': {
         if (!MAPS.some(m => m.id === msg.mapId)) return;
-        s.mapBans = s.mapBans.includes(msg.mapId) ? s.mapBans.filter(id => id !== msg.mapId) : [...s.mapBans, msg.mapId];
+        const marks = s.mapMarks ?? [];
+        s.mapMarks = marks.includes(msg.mapId) ? marks.filter(id => id !== msg.mapId) : [...marks, msg.mapId];
         break;
       }
       case 'mapRoll': {
         busy();
-        const pool = MAPS.map(m => m.id).filter(id => !s.mapBans.includes(id) && !s.mapHistory.includes(id));
-        if (pool.length === 0) throw new UserError('候補のマップがありません。除外か履歴を外してください');
+        s.mapMode ??= 'BAN';
+        const pool = mapPool(MAPS.map(m => m.id), s);
+        if (pool.length === 0) {
+          throw new UserError(s.mapMode === 'PICK' ? '候補のマップを選んでください' : '候補のマップがありません。BANか「出たマップを戻す」で調整してください');
+        }
         const mapId = pool[Math.floor(Math.random() * pool.length)];
         s.map = mapId;
         s.mapHistory = [...s.mapHistory, mapId];

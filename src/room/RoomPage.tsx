@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MAPS, mapImage } from '../data/maps';
 import {
-  ROOM_PATTERN, NAME_MAX, TEAM_SIZE, eventDuration,
-  type ClientMessage, type Member, type RoomState, type Seat, type Side,
+  ROOM_PATTERN, NAME_MAX, TEAM_SIZE, eventDuration, mapPool,
+  type ClientMessage, type MapMode, type Member, type RoomState, type Seat, type Side,
 } from '../logic/room';
 import { createRoom, useRoom, useServerNow } from './connection';
 import { adoptUid, getSavedName, getUid, overlayUrl, saveName } from './identity';
@@ -11,8 +11,8 @@ import { MapReveal, RarityBadge, ROLE_LABEL, SIDE_LABEL, Stage, TeamReveal } fro
 
 const SEAT_NEXT: Record<Seat, Seat> = { WATCH: 'ATK', ATK: 'DEF', DEF: 'WATCH' };
 const SEAT_STYLE: Record<Seat, string> = {
-  ATK: 'bg-[#FF4655]/25 text-[#ffb3ba] border-[#FF4655]/40',
-  DEF: 'bg-[#46CBFF]/20 text-[#b5ecff] border-[#46CBFF]/40',
+  ATK: 'bg-[#FF4655]/25 text-[#ffb3ba] border-[#FF4655]/50',
+  DEF: 'bg-[#46CBFF]/20 text-[#b5ecff] border-[#46CBFF]/50',
   WATCH: 'text-white/45 border-white/20',
 };
 const SEAT_LABEL: Record<Seat, string> = { ATK: 'ATK', DEF: 'DEF', WATCH: '観戦' };
@@ -20,6 +20,9 @@ const SHOW_REVEAL_KEY = 'chaos-gacha:page-reveal';
 
 const btn = 'inline-flex items-center justify-center gap-2 font-black text-sm px-4 py-2 border transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
 const btnGhost = `${btn} border-white/20 bg-[#172129] text-white hover:bg-[#222d37]`;
+const btnRed = `${btn} text-white bg-[#FF4655] border-[#FF4655] hover:bg-[#ff5e6a]`;
+const btnBlue = `${btn} text-white bg-[#1d6b8a] border-[#46CBFF] hover:bg-[#237fa3]`;
+const btnYellow = `${btn} text-[#2b2a3f] bg-[#ffd83b] border-[#ffd83b] hover:bg-[#ffe066]`;
 
 async function copy(text: string) {
   try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
@@ -126,9 +129,30 @@ function JoinForm({ onJoin, onAdopt, error }: {
 }
 
 type Room = ReturnType<typeof useRoom>;
+type Act = (m: ClientMessage) => void;
+type StepKey = 'gather' | 'atk' | 'def' | 'map' | 'start' | 'playing';
+
+const STEPS: { key: Exclude<StepKey, 'playing'>; label: string }[] = [
+  { key: 'gather', label: '10人そろえる' },
+  { key: 'atk', label: 'ATTACKER' },
+  { key: 'def', label: 'DEFENDER' },
+  { key: 'map', label: 'マップ' },
+  { key: 'start', label: '試合開始' },
+];
+
+/** 今どこまで進んでいるか（上から順に、まだ終わっていない最初のもの） */
+function currentStep(s: RoomState): StepKey {
+  const n = (seat: Seat) => s.members.filter(m => m.seat === seat).length;
+  if (n('ATK') !== TEAM_SIZE || n('DEF') !== TEAM_SIZE) return 'gather';
+  if (!s.teams.ATK) return 'atk';
+  if (!s.teams.DEF) return 'def';
+  if (!s.map) return 'map';
+  if (s.display) return 'start';
+  return 'playing';
+}
 
 function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState; uid: string; memberId: string }) {
-  const act = (m: ClientMessage) => room.act(m);
+  const act: Act = m => room.act(m);
   const now = useServerNow(room.offset, Date.now() + room.offset.current < state.lockUntil + 800);
   const locked = now < state.lockUntil;
   const [toast, setToast] = useState<string | null>(null);
@@ -151,71 +175,66 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
   const active = e && e.id !== room.skipEventId && now < e.startedAt + eventDuration(e) ? e : null;
   // この画面では演出の間だけ大きく見せる（OBSは閉じるまで出し続ける）
   const modal = showReveal && active && active.kind !== 'reroll' && closedEvent !== active.id ? active : null;
-  const display = state.display ?? null;
+  const step = currentStep(state);
 
   return (
-    <div className="max-w-[1400px] mx-auto w-full">
+    <div className="w-full">
       {/* 上の帯：URLは画面に出さない（配信に映ってもいいように） */}
-      <div className="flex flex-wrap items-center gap-3 mb-4 bg-[#172129]/90 border border-white/10 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-3 mb-3 bg-[#172129]/90 border border-white/10 px-4 py-2">
         <span className="text-xs font-black tracking-[0.3em] text-gray-400">ROOM</span>
         <span className={`w-2.5 h-2.5 rounded-full ${room.status === 'open' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`}
           title={room.status === 'open' ? '接続中' : '再接続中'} />
         <button className={btnGhost} onClick={() => copyToast(location.href, '招待リンク')}>招待リンクをコピー</button>
-        <button className={`${btnGhost} text-white/60`} onClick={() => {
+        <button className="text-xs text-gray-500 hover:text-white underline" onClick={() => {
           if (confirm('リンクを作り直しますか？\n今のリンクは使えなくなります（名簿と結果はそのまま引き継ぎます）。')) act({ type: 'regenerate' });
         }}>リンクを作り直す</button>
         <div className="ml-auto flex flex-wrap items-center gap-3 text-sm">
           <span className="text-gray-400">あなた：<b className="text-white text-base">{me?.name}</b></span>
-          <button className="text-gray-400 underline hover:text-white" onClick={() => {
+          <button className="text-gray-500 text-xs underline hover:text-white" onClick={() => {
             const n = prompt('新しい名前', me?.name ?? '')?.trim();
             if (n) { saveName(n); act({ type: 'join', uid, name: n }); }
           }}>名前を変更</button>
-          <span className="text-gray-400">OBS用URL：</span>
+          <span className="text-gray-400">OBS用URL</span>
           <code className="bg-black/40 px-2 py-1 text-xs select-none">{peek ? overlayUrl(uid) : `…/me/${'●'.repeat(8)}`}</code>
           <button className={btnGhost} onClick={() => copyToast(overlayUrl(uid), 'OBS用URL')}>コピー</button>
           <button className="text-gray-500 text-xs hover:text-white" onPointerDown={() => setPeek(true)}
             onPointerUp={() => setPeek(false)} onPointerLeave={() => setPeek(false)}>押している間表示</button>
+          <details className="relative text-xs text-gray-400">
+            <summary className="cursor-pointer hover:text-white list-none underline">OBSの設定方法</summary>
+            <div className="absolute right-0 top-6 z-50 w-[420px] bg-[#0F1923] border border-white/15 p-4 shadow-2xl text-sm leading-relaxed">
+              <ol className="list-decimal ml-5 space-y-1">
+                <li>「コピー」でOBS用URLをコピーします。</li>
+                <li>OBSで「ソース」→「＋」→「ブラウザ」を追加し、URLに貼り付けます。幅 1920・高さ 1080。</li>
+                <li>ゲーム画面より上、V体より下に置いて、画面全体に広げます。</li>
+                <li>次回からは、新しいルームで「参加」を押すだけでOBSも切り替わります。</li>
+              </ol>
+              <p className="mt-2 text-gray-500">カードの位置は URL の末尾に <code>?x=24&amp;y=410&amp;s=1</code>（横・縦・大きさ）で調整できます。</p>
+            </div>
+          </details>
         </div>
       </div>
 
-      <details className="mb-4 text-sm text-gray-400 bg-[#172129]/60 border border-white/5 px-4 py-2">
-        <summary className="cursor-pointer hover:text-white">OBSの設定方法（最初の1回だけ）</summary>
-        <ol className="list-decimal ml-6 mt-2 space-y-1 leading-relaxed">
-          <li>上の「コピー」でOBS用URLをコピーします。</li>
-          <li>OBSで「ソース」→「＋」→「ブラウザ」を追加し、URLに貼り付けます。幅 1920・高さ 1080 にします。</li>
-          <li>ゲーム画面より上、V体より下に置きます。画面全体に広げておけば、自分の縛りはミニマップの下に出ます。</li>
-          <li>次回からは、新しいルームのリンクを開いて「参加」を押すだけで、OBSも自動で切り替わります。</li>
-        </ol>
-        <p className="mt-2 leading-relaxed">カードの位置を変えたいときは、URLの末尾に <code>?x=24&amp;y=410&amp;s=1</code>（横位置・縦位置・大きさ）を付けて調整できます。</p>
-      </details>
+      <Guide step={step} state={state} locked={locked} act={act} />
 
       {locked && e && (
-        <div className="mb-4 px-4 py-2 bg-[#FF4655]/15 border border-[#FF4655]/40 text-sm font-bold animate-pulse">
-          {e.by}さんが{e.kind === 'map' ? 'マップ' : e.kind === 'team' ? SIDE_LABEL[e.side] : '振り直し'}を抽選中…（終わるまで回せません）
+        <div className="mb-3 px-4 py-2 bg-[#FF4655]/15 border border-[#FF4655]/40 text-sm font-bold animate-pulse">
+          {e.by}さんが{e.kind === 'map' ? 'マップ' : e.kind === 'team' ? SIDE_LABEL[e.side] : '振り直し'}を抽選中…
         </div>
       )}
 
-      {display && (
-        <div className="mb-4 flex flex-wrap items-center gap-3 px-4 py-3 bg-[#46CBFF]/10 border border-[#46CBFF]/40">
-          <span className="text-sm font-bold">
-            OBSに{display.kind === 'map' ? 'マップ' : SIDE_LABEL[display.side]}の抽選結果を表示中です。振り直しもこのままできます。
-          </span>
-          <button className={`${btn} ml-auto bg-[#46CBFF] border-[#46CBFF] text-[#0F1923] hover:bg-[#2fb5ea]`}
-            onClick={() => act({ type: 'closeDisplay' })}>OBSの結果画面を閉じる</button>
-        </div>
-      )}
-
-      <div className="grid gap-4 lg:grid-cols-[320px_1fr_1fr]">
-        <Roster members={state.members} memberId={memberId} act={act} />
+      <div className="grid gap-3 lg:grid-cols-[240px_1fr_1fr] 2xl:grid-cols-[240px_1fr_1fr_340px]">
+        <Roster members={state.members} memberId={memberId} act={act} focus={step === 'gather'} />
         {(['ATK', 'DEF'] as Side[]).map(side => (
           <TeamPanel key={side} side={side} state={state} locked={locked} act={act}
+            focus={step === (side === 'ATK' ? 'atk' : 'def')}
             rerolling={active?.kind === 'reroll' && active.side === side ? active.index : null} />
         ))}
+        <div className="lg:col-span-3 2xl:col-span-1">
+          <MapPanel state={state} locked={locked} act={act} focus={step === 'map'} />
+        </div>
       </div>
 
-      <MapPanel state={state} locked={locked} act={act} />
-
-      <div className="flex flex-wrap items-center gap-4 mt-6 mb-4">
+      <div className="flex flex-wrap items-center gap-4 mt-4">
         <button className={btnGhost} onClick={() => {
           if (confirm('新しい試合を始めますか？\n全員の抽選結果とOBSの表示が消えます（チーム分けは残ります）。')) act({ type: 'newMatch' });
         }}>新しい試合（結果をリセット）</button>
@@ -250,33 +269,100 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
   );
 }
 
-function Roster({ members, memberId, act }: { members: Member[]; memberId: string; act: (m: ClientMessage) => void }) {
+/** 「次にやること」の案内。進み具合の目盛りと、その場で押せるボタン */
+function Guide({ step, state, locked, act }: { step: StepKey; state: RoomState; locked: boolean; act: Act }) {
+  const n = (seat: Seat) => state.members.filter(m => m.seat === seat).length;
+  const doneIndex = step === 'playing' ? STEPS.length : STEPS.findIndex(s => s.key === step);
+  const pool = mapPool(MAPS.map(m => m.id), state).length;
+
+  let text: ReactNode;
+  let action: ReactNode = null;
+  switch (step) {
+    case 'gather':
+      text = <>左の名簿で <b>ATK と DEF に5人ずつ</b> 振り分けましょう（今 ATK {n('ATK')}/5・DEF {n('DEF')}/5）。</>;
+      action = <button className={btnGhost} onClick={() => act({ type: 'randomTeams' })}>ランダムでチーム分け</button>;
+      break;
+    case 'atk':
+      text = <>10人そろいました！まずは <b className="text-[#FF4655]">ATTACKER</b> を回しましょう。</>;
+      action = <button className={`${btnRed} text-base px-6`} disabled={locked} onClick={() => act({ type: 'roll', side: 'ATK' })}>ATTACKERを回す</button>;
+      break;
+    case 'def':
+      text = <>ATTACKERの結果を確認。気になる人は <b>顔↻・縛↻</b> で1人ずつ振り直せます。OKなら <b className="text-[#46CBFF]">DEFENDER</b> へ。</>;
+      action = <button className={`${btnBlue} text-base px-6`} disabled={locked} onClick={() => act({ type: 'roll', side: 'DEF' })}>DEFENDERを回す</button>;
+      break;
+    case 'map':
+      text = <>DEFENDERも確認して、OKなら <b className="text-[#ffd83b]">マップ</b> を回しましょう（右の一覧で PICK / BAN できます）。</>;
+      action = <button className={`${btnYellow} text-base px-6`} disabled={locked || pool === 0} onClick={() => act({ type: 'mapRoll' })}>マップを回す（{pool}）</button>;
+      break;
+    case 'start':
+      text = <>全部決まりました！OBSの結果画面を閉じると、各自のミニマップの下に縛りが出て <b>試合開始</b> です。</>;
+      action = <button className={`${btnYellow} text-base px-6`} onClick={() => act({ type: 'closeDisplay' })}>結果画面を閉じて試合開始</button>;
+      break;
+    case 'playing':
+      text = <>試合中です。終わったら「新しい試合」で次へ（チーム分けは残ります）。</>;
+      action = <button className={btnGhost} onClick={() => {
+        if (confirm('新しい試合を始めますか？\n全員の抽選結果とOBSの表示が消えます（チーム分けは残ります）。')) act({ type: 'newMatch' });
+      }}>新しい試合</button>;
+      break;
+  }
+
+  return (
+    <div className="mb-3 bg-[#172129]/90 border border-[#ffd83b]/40 px-4 py-3">
+      <ol className="flex flex-wrap items-center gap-2 mb-2">
+        {STEPS.map((s, i) => (
+          <li key={s.key} className="flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border ${
+              i < doneIndex ? 'border-emerald-400/50 text-emerald-300 bg-emerald-400/10'
+                : i === doneIndex ? 'border-[#ffd83b] text-[#2b2a3f] bg-[#ffd83b]'
+                : 'border-white/15 text-white/40'}`}>
+              {i < doneIndex ? '✓' : i + 1} {s.label}
+            </span>
+            {i < STEPS.length - 1 && <span className="text-white/20">›</span>}
+          </li>
+        ))}
+      </ol>
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-[#ffd83b] font-black text-sm">▶ 次にやること</span>
+        <span className="text-sm leading-relaxed flex-1 min-w-[280px]">{text}</span>
+        {action}
+        {state.display && step !== 'start' && (
+          <button className="text-xs text-gray-400 hover:text-white underline" onClick={() => act({ type: 'closeDisplay' })}>OBSの結果画面を閉じる</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const panel = (focus: boolean) =>
+  `bg-[#172129]/90 border p-3 flex flex-col ${focus ? 'border-[#ffd83b]/70 shadow-[0_0_0_1px_rgba(255,216,59,.35)]' : 'border-white/10'}`;
+
+function Roster({ members, memberId, act, focus }: { members: Member[]; memberId: string; act: Act; focus: boolean }) {
   const count = (seat: Seat) => members.filter(m => m.seat === seat).length;
   return (
-    <section className="bg-[#172129]/90 border border-white/10 p-4">
-      <div className="flex items-baseline justify-between mb-3">
+    <section className={panel(focus)}>
+      <div className="flex items-baseline justify-between mb-1">
         <h3 className="font-black tracking-wider">参加者 {members.length}人</h3>
-        <span className="text-xs text-gray-500">● = OBS起動中</span>
+        <span className="text-[11px] text-gray-500">● OBS起動中</span>
       </div>
-      <p className="text-xs text-gray-500 mb-3">右のボタンを押すと ATK → DEF → 観戦 と切り替わります</p>
-      <ul>
+      <p className="text-[11px] text-gray-500 mb-2">右のボタンで ATK → DEF → 観戦</p>
+      <ul className="overflow-y-auto max-h-[420px] pr-1">
         {members.map(m => (
-          <li key={m.id} className={`flex items-center gap-3 py-2 border-b border-white/5 ${m.seat === 'WATCH' ? 'text-white/50' : ''}`}>
-            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${m.online ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-white/15'}`} />
-            <span className="truncate font-bold">{m.name}{m.id === memberId && <span className="text-xs text-gray-500 font-normal ml-1">（あなた）</span>}</span>
+          <li key={m.id} className={`flex items-center gap-2 py-1.5 border-b border-white/5 text-sm ${m.seat === 'WATCH' ? 'text-white/50' : ''}`}>
+            <span className={`w-2 h-2 rounded-full shrink-0 ${m.online ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-white/15'}`} />
+            <span className="truncate font-bold">{m.name}{m.id === memberId && <span className="text-[11px] text-gray-500 font-normal ml-1">（あなた）</span>}</span>
             <button onClick={() => act({ type: 'seat', memberId: m.id, seat: SEAT_NEXT[m.seat] })}
-              className={`ml-auto shrink-0 w-14 text-xs font-black py-1 border ${SEAT_STYLE[m.seat]}`}>{SEAT_LABEL[m.seat]}</button>
+              className={`ml-auto shrink-0 w-12 text-[11px] font-black py-0.5 border ${SEAT_STYLE[m.seat]}`}>{SEAT_LABEL[m.seat]}</button>
           </li>
         ))}
       </ul>
-      <div className="text-xs text-gray-500 mt-3">ATK {count('ATK')}/{TEAM_SIZE}・DEF {count('DEF')}/{TEAM_SIZE}</div>
-      <button className={`${btnGhost} w-full mt-3`} onClick={() => act({ type: 'randomTeams' })}>ランダムでチーム分け</button>
+      <div className="text-[11px] text-gray-500 mt-2">ATK {count('ATK')}/{TEAM_SIZE}・DEF {count('DEF')}/{TEAM_SIZE}</div>
+      <button className={`${btnGhost} w-full mt-2`} onClick={() => act({ type: 'randomTeams' })}>ランダムでチーム分け</button>
     </section>
   );
 }
 
-function TeamPanel({ side, state, locked, act, rerolling }: {
-  side: Side; state: RoomState; locked: boolean; act: (m: ClientMessage) => void; rerolling: number | null;
+function TeamPanel({ side, state, locked, act, rerolling, focus }: {
+  side: Side; state: RoomState; locked: boolean; act: Act; rerolling: number | null; focus: boolean;
 }) {
   const roll = state.teams[side];
   const seated = state.members.filter(m => m.seat === side);
@@ -284,79 +370,92 @@ function TeamPanel({ side, state, locked, act, rerolling }: {
   const changed = roll && (roll.slots.length !== seated.length || roll.slots.some(s => !seated.some(m => m.id === s.memberId)));
 
   return (
-    <section className="bg-[#172129]/90 border border-white/10 p-4 flex flex-col">
-      <h3 className={`font-black text-xl italic tracking-wider mb-3 ${color}`}>{SIDE_LABEL[side]}</h3>
+    <section className={panel(focus)}>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className={`font-black text-lg italic tracking-wider ${color}`}>{SIDE_LABEL[side]}</h3>
+        <button disabled={locked || seated.length !== TEAM_SIZE} onClick={() => act({ type: 'roll', side })}
+          className={`${side === 'ATK' ? btnRed : btnBlue} py-1.5`}>
+          {roll ? '回し直す' : '回す'}
+        </button>
+      </div>
       {roll ? (
-        <ul className="space-y-2">
+        <ul className="space-y-1.5">
           {roll.slots.map((s, i) => (
-            <li key={s.memberId} className={`flex gap-3 bg-black/30 border border-white/5 p-2 ${rerolling === i ? 'animate-pulse' : ''}`}>
-              <img src={s.agent.image} alt="" className="w-16 h-16 object-cover object-top shrink-0" />
+            <li key={s.memberId} className={`flex gap-2 bg-black/30 border border-white/5 p-1.5 ${rerolling === i ? 'animate-pulse' : ''}`}>
+              <img src={s.agent.image} alt="" className="w-12 h-12 object-cover object-top shrink-0" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
-                  <span className="font-bold truncate">{s.name}</span>
-                  <span className="text-xs text-gray-400 truncate">{s.agent.name}・{ROLE_LABEL[s.agent.role]}</span>
+                  <span className="font-bold text-sm truncate">{s.name}</span>
+                  <span className="text-[11px] text-gray-400 truncate">{s.agent.name}・{ROLE_LABEL[s.agent.role]}</span>
                 </div>
-                <div className="flex items-start gap-2 mt-1">
+                <div className="flex items-start gap-1.5 mt-0.5">
                   <RarityBadge rarity={s.bind.rarity} size="sm" />
-                  <span className="text-xs text-white/80 leading-snug whitespace-pre-line">{s.bind.text}</span>
+                  <span className="text-[11px] text-white/80 leading-snug line-clamp-2">{s.bind.text.replace(/\n/g, ' ')}</span>
                 </div>
               </div>
               <div className="flex flex-col gap-1 shrink-0">
                 <button disabled={locked} title="エージェントを振り直す" onClick={() => act({ type: 'reroll', side, index: i, target: 'agent' })}
-                  className="text-[11px] px-2 py-1 border border-white/15 text-white/60 hover:text-white disabled:opacity-30">顔↻</button>
+                  className="text-[10px] px-1.5 py-0.5 border border-white/15 text-white/60 hover:text-white disabled:opacity-30">顔↻</button>
                 <button disabled={locked} title="縛りを振り直す" onClick={() => act({ type: 'reroll', side, index: i, target: 'bind' })}
-                  className="text-[11px] px-2 py-1 border border-white/15 text-white/60 hover:text-white disabled:opacity-30">縛↻</button>
+                  className="text-[10px] px-1.5 py-0.5 border border-white/15 text-white/60 hover:text-white disabled:opacity-30">縛↻</button>
               </div>
             </li>
           ))}
         </ul>
       ) : (
-        <div className="border border-dashed border-white/10 p-4 text-sm text-gray-500 min-h-[120px]">
+        <div className="border border-dashed border-white/10 p-3 text-sm text-gray-500 flex-1">
           {seated.length ? seated.map(m => m.name).join(' / ') : '左の名簿でメンバーを振り分けてください'}
           <div className="mt-2 text-xs">{seated.length}/{TEAM_SIZE}人・未抽選</div>
         </div>
       )}
       {changed && <p className="text-xs text-amber-300 mt-2">メンバーが変わっています。回し直すと反映されます。</p>}
-      <button disabled={locked || seated.length !== TEAM_SIZE} onClick={() => act({ type: 'roll', side })}
-        className={`${btn} mt-4 py-3 text-base text-white ${side === 'ATK' ? 'bg-[#FF4655] border-[#FF4655] hover:bg-[#ff5e6a]' : 'bg-[#1d6b8a] border-[#46CBFF] hover:bg-[#237fa3]'}`}>
-        {SIDE_LABEL[side]}を{roll ? '回し直す' : '回す'}
-      </button>
     </section>
   );
 }
 
-function MapPanel({ state, locked, act }: { state: RoomState; locked: boolean; act: (m: ClientMessage) => void }) {
-  const pool = MAPS.filter(m => !state.mapBans.includes(m.id) && !state.mapHistory.includes(m.id));
+function MapPanel({ state, locked, act, focus }: { state: RoomState; locked: boolean; act: Act; focus: boolean }) {
+  const mode: MapMode = state.mapMode ?? 'BAN';
+  const marks = state.mapMarks ?? [];
+  const pool = mapPool(MAPS.map(m => m.id), state);
   return (
-    <section className="mt-4 bg-[#172129]/90 border border-white/10 p-4">
-      <div className="flex flex-wrap items-center gap-3 mb-3">
-        <h3 className="font-black text-xl italic tracking-wider">MAP</h3>
-        <span className="text-xs text-gray-500">押すと除外／もう一度押すと戻す。一度出たマップは次から外れます。</span>
-        <div className="ml-auto flex gap-2">
-          <button className={btnGhost} disabled={!state.mapHistory.length} onClick={() => act({ type: 'mapClearHistory' })}>出たマップを戻す</button>
-          <button disabled={locked || pool.length === 0} onClick={() => act({ type: 'mapRoll' })}
-            className={`${btn} text-white bg-[#FF4655] border-[#FF4655] hover:bg-[#ff5e6a]`}>マップを回す（{pool.length}）</button>
+    <section className={`${panel(focus)} h-full`}>
+      <div className="flex items-center gap-2 mb-2">
+        <h3 className="font-black text-lg italic tracking-wider text-[#ffd83b]">MAP</h3>
+        <div className="flex bg-black/40 p-0.5 border border-white/10">
+          {(['PICK', 'BAN'] as MapMode[]).map(m => (
+            <button key={m} onClick={() => act({ type: 'mapMode', mode: m })}
+              className={`px-3 py-0.5 text-[11px] font-black tracking-widest ${mode === m ? (m === 'PICK' ? 'bg-[#FF4655] text-white' : 'bg-[#46CBFF] text-[#0F1923]') : 'text-white/40 hover:text-white'}`}>{m}</button>
+          ))}
         </div>
+        <button disabled={locked || pool.length === 0} onClick={() => act({ type: 'mapRoll' })}
+          className={`${btnYellow} ml-auto py-1`}>回す（{pool.length}）</button>
       </div>
-      <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-7 gap-2">
+      <p className="text-[11px] text-gray-500 mb-2">
+        {mode === 'PICK' ? '押したマップの中から選びます。' : '押したマップを除いて選びます。'}一度出たマップは次から外れます。
+      </p>
+      <div className="grid grid-cols-5 2xl:grid-cols-3 gap-1.5">
         {MAPS.map(m => {
-          const banned = state.mapBans.includes(m.id);
+          const marked = marks.includes(m.id);
           const used = state.mapHistory.includes(m.id);
           const current = state.map === m.id;
+          const out = (mode === 'BAN' && marked) || (mode === 'PICK' && !marked) || (used && !current);
           return (
-            <button key={m.id} onClick={() => act({ type: 'mapBan', mapId: m.id })}
-              className={`relative aspect-video overflow-hidden border-2 ${current ? 'border-[#FF4655]' : 'border-white/10'}`}>
-              <img src={mapImage(m)} alt="" className={`absolute inset-0 w-full h-full object-cover ${banned || (used && !current) ? 'grayscale opacity-30' : ''}`} />
-              <span className="absolute inset-x-0 bottom-0 text-[11px] font-black tracking-wider bg-black/60 py-0.5">{m.name}</span>
-              {(banned || used || current) && (
-                <span className={`absolute top-1 left-1 text-[10px] font-black px-1.5 ${current ? 'bg-[#FF4655]' : banned ? 'bg-gray-700' : 'bg-black/70'}`}>
-                  {current ? '今回' : banned ? '除外' : '済'}
+            <button key={m.id} onClick={() => act({ type: 'mapMark', mapId: m.id })}
+              className={`relative aspect-video overflow-hidden border-2 ${current ? 'border-[#ffd83b]' : mode === 'PICK' && marked ? 'border-[#FF4655]' : 'border-white/10'}`}>
+              <img src={mapImage(m)} alt="" className={`absolute inset-0 w-full h-full object-cover ${out ? 'grayscale opacity-30' : ''}`} />
+              <span className="absolute inset-x-0 bottom-0 text-[10px] font-black tracking-wider bg-black/60">{m.name}</span>
+              {(current || used || marked) && (
+                <span className={`absolute top-0.5 left-0.5 text-[9px] font-black px-1 ${
+                  current ? 'bg-[#ffd83b] text-[#2b2a3f]' : marked ? (mode === 'PICK' ? 'bg-[#FF4655]' : 'bg-gray-700') : 'bg-black/70'}`}>
+                  {current ? '今回' : marked ? mode : '済'}
                 </span>
               )}
             </button>
           );
         })}
       </div>
+      <button className="text-[11px] text-gray-500 hover:text-white underline mt-2 self-start disabled:opacity-40"
+        disabled={!state.mapHistory.length} onClick={() => act({ type: 'mapClearHistory' })}>出たマップを戻す</button>
     </section>
   );
 }

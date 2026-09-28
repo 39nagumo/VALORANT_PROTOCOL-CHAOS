@@ -1,108 +1,136 @@
-/* ルーム機能の演出（1920×1080 の画面を縮小して使う） */
+/* ルーム機能の演出（1920×1080 の画面を縮小して使う）
+   ロゴ（赤・黄・紺に白フチのステッカー風）に合わせて、白フチ＋紺の縁取りで統一する */
 .cr-stage-host { position: absolute; inset: 0; overflow: hidden; }
 .cr-stage {
   position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
-  transform-origin: 0 0; overflow: hidden; color: #ECE8E1;
+  transform-origin: 0 0; overflow: hidden; color: #fff;
   font-family: "Yu Gothic UI", "Hiragino Sans", "Meiryo", system-ui, sans-serif;
+  --navy: #2b2a3f; --card: #1d1c30;
 }
 .cr-stage img { user-select: none; -webkit-user-drag: none; }
+.cr-reveal { position: absolute; inset: 0; }
 
-.cr-reveal { position: absolute; inset: 0; --accent: #FF4655; --accent-rgb: 255, 70, 85; }
-.cr-side-DEF { --accent: #46CBFF; --accent-rgb: 70, 203, 255; }
-.cr-side-MAP { --accent: #FF4655; --accent-rgb: 255, 70, 85; }
-.cr-bg { position: absolute; inset: 0; background: radial-gradient(ellipse at 35% 40%, rgba(var(--accent-rgb), .28) 0%, #0F1923 62%); background-color: #0F1923; }
-.cr-stripes { position: absolute; inset: 0; background: repeating-linear-gradient(-12deg, transparent 0 60px, rgba(var(--accent-rgb), .05) 60px 62px); }
-/* 背景は透過（ゲーム画面の上に重ねる）。文字は影で読めるようにする */
-.cr-title {
-  position: absolute; left: 70px; top: 44px; margin: 0;
-  font-size: 80px; font-weight: 900; font-style: italic; letter-spacing: .01em;
-  color: var(--accent); text-shadow: 0 3px 14px rgba(0,0,0,.85), 0 0 30px rgba(var(--accent-rgb), .5);
-  font-family: "Bahnschrift", "Segoe UI", sans-serif;
+/* 見出し：ロゴ＋タグ（背景は透過なので、どれも白フチ＋紺の縁で読めるようにする） */
+.cr-head { position: absolute; left: 44px; top: 18px; display: flex; align-items: center; gap: 8px; }
+.cr-logo { width: 420px; height: 184px; overflow: hidden; transform-origin: 30% 60%; }
+.cr-logo img { display: block; width: 420px; margin-top: -36px; filter: drop-shadow(0 6px 0 rgba(20,19,32,.55)); }
+.cr-head-right { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 18px; }
+.cr-tag {
+  font-family: "Bahnschrift", "Segoe UI", sans-serif; font-weight: 900; font-style: italic; font-size: 50px;
+  letter-spacing: .04em; line-height: 1; padding: 10px 30px 12px; border-radius: 16px; transform: rotate(-3deg);
+  border: 5px solid #fff; box-shadow: 0 0 0 5px var(--navy), 0 9px 0 5px var(--navy);
+  text-shadow: 0 3px 0 rgba(0,0,0,.25);
 }
-.cr-sub { position: absolute; left: 78px; top: 150px; font-size: 24px; letter-spacing: .3em; color: rgba(255,255,255,.85); text-shadow: 0 2px 8px rgba(0,0,0,.9); font-family: "Bahnschrift", sans-serif; }
-.cr-by { position: absolute; left: 1100px; top: 150px; font-size: 24px; color: rgba(255,255,255,.8); border: 1px solid rgba(255,255,255,.25); padding: 6px 18px; background: rgba(15,25,35,.85); }
+.cr-tag-ATK { background: #FF4655; }
+.cr-tag-DEF { background: #2fb3ea; }
+.cr-tag-MAP { background: #ffd83b; color: var(--navy); text-shadow: none; }
+.cr-by {
+  font-size: 22px; padding: 6px 18px; border-radius: 999px; background: var(--navy); color: rgba(255,255,255,.8);
+  border: 3px solid rgba(255,255,255,.9); margin-left: 10px;
+}
+.cr-by b { color: #fff; }
 
-.cr-cards { position: absolute; left: 60px; top: 232px; display: flex; gap: 18px; }
+/* カード */
+.cr-cards { position: absolute; left: 64px; top: 262px; display: flex; gap: 26px; }
+.cr-slot { width: 256px; border-radius: 22px; position: relative; }
 .cr-card {
-  width: 258px; height: 770px; background: #1A2531; border: 2px solid rgba(255,255,255,.1);
-  display: flex; flex-direction: column; position: relative; transition: box-shadow .3s;
+  position: relative; border-radius: 22px; overflow: hidden; background: var(--card);
+  border: 5px solid #fff; box-shadow: 0 0 0 5px var(--navy), 0 12px 0 5px var(--navy);
 }
-.cr-pname { font-size: 22px; font-weight: 700; padding: 12px 14px 6px; border-bottom: 1px solid rgba(255,255,255,.1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cr-aname { font-size: 32px; font-weight: 900; font-style: italic; padding: 6px 14px 0; white-space: nowrap; overflow: hidden; }
-.cr-role { font-size: 17px; font-weight: 700; text-align: right; padding: 0 14px 8px; letter-spacing: .1em; font-family: "Bahnschrift", sans-serif; color: rgba(255,255,255,.35); }
-.cr-role-Duelist { color: #fde047; } .cr-role-Initiator { color: #f9a8d4; } .cr-role-Controller { color: #d8b4fe; } .cr-role-Sentinel { color: #67e8f9; }
-.cr-img { height: 300px; overflow: hidden; position: relative; background: #000; }
-.cr-img img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
-.cr-img-q { display: flex; align-items: center; justify-content: center; font-size: 160px; font-weight: 900; color: rgba(255,255,255,.12); background: #101820; }
-.cr-blur { filter: blur(5px) brightness(.8); transform: scale(1.08); }
-.cr-bind {
-  flex: 1; margin: 12px; border: 1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.4); border-radius: 8px;
-  display: flex; flex-direction: column; align-items: center; padding: 16px 10px; text-align: center; transition: box-shadow .2s, border-color .2s;
+.cr-art { position: relative; height: 380px; background: #0e0d18; overflow: hidden; }
+.cr-art img { width: 100%; height: 100%; object-fit: cover; object-position: center 12%; display: block; }
+.cr-art-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 55%; background: linear-gradient(transparent, rgba(29,28,48,.25) 30%, var(--card) 96%); }
+.cr-blur { filter: blur(5px) brightness(.85) saturate(1.2); transform: scale(1.1); }
+.cr-pname {
+  position: absolute; left: 12px; top: 12px; max-width: calc(100% - 24px);
+  padding: 4px 14px; border-radius: 999px; background: #fff; color: var(--navy);
+  font-size: 20px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  box-shadow: 0 3px 0 var(--navy);
 }
-.cr-bind p { margin: 16px 0 0; font-size: 21px; font-weight: 700; line-height: 1.55; white-space: pre-line; }
-.cr-rolling { color: rgba(255,255,255,.45); filter: blur(.6px); }
-.cr-wait { opacity: .5; }
-.cr-card { box-shadow: 0 6px 24px rgba(0,0,0,.55); }
-.cr-spin { border-color: rgba(255,255,255,.25); }
-.cr-wait { background: rgba(26,37,49,.85); }
-/* 見ている本人のカードだけに付く縁取り（色は縛りのレア度） */
-.cr-me { outline: 4px solid rgba(255,255,255,.7); outline-offset: 3px; }
-.cr-me-CHAOS { outline-color: #FF4655; } .cr-me-Epic { outline-color: #c084fc; } .cr-me-Exotic { outline-color: #4ade80; }
-.cr-me-Unique { outline-color: #f472b6; } .cr-me-Special { outline-color: #22d3ee; } .cr-me-Extra { outline-color: #facc15; }
-.cr-bind { position: relative; }
-.cr-bind-flash { position: absolute; inset: 0; border-radius: 8px; pointer-events: none; }
-.cr-bf-CHAOS { background: rgba(255,70,85,.45); } .cr-bf-Epic { background: rgba(192,132,252,.4); } .cr-bf-Exotic { background: rgba(74,222,128,.4); }
-.cr-bf-Unique { background: rgba(244,114,182,.4); } .cr-bf-Special { background: rgba(34,211,238,.4); } .cr-bf-Extra { background: rgba(250,204,21,.4); }
-.cr-chaos { border-color: #FF4655; box-shadow: 0 0 50px rgba(255,70,85,.8), 0 0 0 3px #FF4655; z-index: 2; }
-.cr-chaos .cr-bind { background: rgba(40,5,8,.85); border-color: rgba(255,70,85,.5); }
-.cr-burst {
-  position: absolute; top: 372px; left: 50%; transform: translateX(-50%) rotate(-6deg); z-index: 3;
-  background: #FF4655; color: #fff; font-size: 34px; font-weight: 900; font-style: italic; padding: 4px 22px;
-  letter-spacing: .08em; box-shadow: 0 0 30px rgba(255,70,85,.9); white-space: nowrap; font-family: "Bahnschrift", sans-serif;
+.cr-agent { position: absolute; left: 16px; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 2px; }
+.cr-role {
+  font-family: "Bahnschrift", sans-serif; font-weight: 900; font-size: 17px; letter-spacing: .14em;
+  text-shadow: 0 2px 0 var(--navy), 2px 0 0 var(--navy), -2px 0 0 var(--navy), 0 -2px 0 var(--navy);
 }
-.cr-burst-in { animation: cr-burst-in .3s cubic-bezier(.2,1.6,.4,1); }
-@keyframes cr-burst-in { from { transform: translateX(-50%) rotate(-6deg) scale(2.2); opacity: 0; } }
-.cr-flash-white { position: absolute; inset: 0; background: #fff; pointer-events: none; }
-.cr-flash-red { position: absolute; inset: 0; background: #FF4655; pointer-events: none; mix-blend-mode: screen; }
+.cr-role-Duelist { color: #ffd83b; } .cr-role-Initiator { color: #ff9ecf; } .cr-role-Controller { color: #cfa8ff; } .cr-role-Sentinel { color: #6ee7f9; }
+.cr-aname {
+  font-size: 40px; font-weight: 900; font-style: italic; line-height: 1.15; white-space: nowrap;
+  text-shadow: 3px 3px 0 var(--navy), -3px 3px 0 var(--navy), 3px -3px 0 var(--navy), -3px -3px 0 var(--navy), 0 6px 0 var(--navy);
+}
+.cr-art-q { display: flex; align-items: center; justify-content: center; background: repeating-linear-gradient(-45deg, #232238 0 18px, #1d1c30 18px 36px); }
+.cr-art-q span { font-size: 150px; font-weight: 900; color: rgba(255,255,255,.14); }
 
-.cr-progress { position: absolute; left: 60px; bottom: 40px; display: flex; gap: 10px; align-items: center; font-size: 20px; color: rgba(255,255,255,.6); font-family: "Bahnschrift", sans-serif; }
-.cr-progress i { display: block; width: 60px; height: 8px; background: rgba(255,255,255,.15); }
-.cr-progress i.on { background: var(--accent); }
+.cr-bind {
+  position: relative; height: 216px; padding: 16px 14px; display: flex; flex-direction: column; align-items: center;
+  text-align: center; border-top: 4px solid var(--rc); background: var(--card); transition: box-shadow .2s;
+}
+.cr-wait .cr-bind { border-top-color: rgba(255,255,255,.12); }
+.cr-bind p { margin: 14px 0 0; font-size: 20px; font-weight: 800; line-height: 1.5; white-space: pre-line; }
+.cr-bind-rolling { box-shadow: inset 0 0 60px -12px var(--rc); }
+.cr-rolling { opacity: .55; filter: blur(.5px); }
+.cr-bind-flash { position: absolute; inset: 0; background: var(--rc); pointer-events: none; mix-blend-mode: screen; }
+.cr-flash-white { position: absolute; inset: 0; background: #fff; pointer-events: none; }
+
+/* 見ている本人のカードだけ、レア度の色でふわっと光り続ける */
+.cr-glow { animation: cr-glow 1.8s ease-in-out infinite; }
+@keyframes cr-glow {
+  0%, 100% { filter: drop-shadow(0 0 6px var(--rc)) drop-shadow(0 0 2px var(--rc)); }
+  50% { filter: drop-shadow(0 0 28px var(--rc)) drop-shadow(0 0 8px var(--rc)); }
+}
 
 /* レア度 */
-.cr-badge { display: inline-block; border: 2px solid; border-radius: 6px; padding: 3px 12px; font-weight: 900; letter-spacing: .15em; font-size: 18px; font-family: "Bahnschrift", sans-serif; }
-.cr-badge-sm { font-size: 13px; padding: 1px 8px; border-width: 1.5px; letter-spacing: .12em; }
-.cr-r-CHAOS { border-color: #FF4655; background: rgba(255,70,85,.25); color: #FFE9EC; }
-.cr-r-Epic { border-color: #c084fc; background: rgba(192,132,252,.18); color: #f3e8ff; }
-.cr-r-Exotic { border-color: #4ade80; background: rgba(74,222,128,.18); color: #dcfce7; }
-.cr-r-Unique { border-color: #f472b6; background: rgba(244,114,182,.18); color: #fce7f3; }
-.cr-r-Special { border-color: #22d3ee; background: rgba(34,211,238,.18); color: #cffafe; }
-.cr-r-Extra { border-color: #facc15; background: rgba(250,204,21,.18); color: #fef9c3; }
-.cr-glow-CHAOS { border-color: rgba(255,70,85,.8); box-shadow: inset 0 0 50px rgba(255,70,85,.45); }
-.cr-glow-Epic { border-color: rgba(192,132,252,.7); box-shadow: inset 0 0 40px rgba(192,132,252,.35); }
-.cr-glow-Exotic { border-color: rgba(74,222,128,.7); box-shadow: inset 0 0 40px rgba(74,222,128,.35); }
-.cr-glow-Unique { border-color: rgba(244,114,182,.7); box-shadow: inset 0 0 40px rgba(244,114,182,.35); }
-.cr-glow-Special { border-color: rgba(34,211,238,.7); box-shadow: inset 0 0 40px rgba(34,211,238,.35); }
-.cr-glow-Extra { border-color: rgba(250,204,21,.7); box-shadow: inset 0 0 40px rgba(250,204,21,.35); }
+.cr-badge {
+  display: inline-block; border-radius: 999px; padding: 4px 16px; font-weight: 900; letter-spacing: .12em; font-size: 17px;
+  font-family: "Bahnschrift", sans-serif; color: #2b2a3f; border: 3px solid #2b2a3f;
+}
+.cr-badge-sm { font-size: 12px; padding: 1px 9px; border-width: 2px; letter-spacing: .1em; }
+.cr-r-CHAOS { background: #FF4655; color: #fff; }
+.cr-r-Epic { background: #c084fc; }
+.cr-r-Exotic { background: #4ade80; }
+.cr-r-Unique { background: #f472b6; }
+.cr-r-Special { background: #22d3ee; }
+.cr-r-Extra { background: #facc15; }
 
 /* マップ */
-.cr-maps { position: absolute; left: 60px; top: 240px; width: 1420px; display: flex; flex-wrap: wrap; gap: 18px; }
-.cr-map { width: 262px; aspect-ratio: 16 / 9; position: relative; overflow: hidden; border: 3px solid rgba(255,255,255,.1); filter: brightness(.55) saturate(.7); }
+.cr-maps { position: absolute; left: 64px; top: 262px; width: 1440px; display: flex; flex-wrap: wrap; gap: 26px 24px; }
+.cr-map {
+  width: 264px; aspect-ratio: 16 / 9; position: relative; overflow: hidden; border-radius: 16px;
+  border: 4px solid #fff; box-shadow: 0 0 0 4px var(--navy), 0 8px 0 4px var(--navy);
+  filter: brightness(.6) saturate(.8); transition: opacity .3s;
+}
 .cr-map img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.cr-map span { position: absolute; left: 0; right: 0; bottom: 0; padding: 20px 0 8px; text-align: center; font-weight: 900; font-size: 22px; letter-spacing: .12em; background: linear-gradient(transparent, rgba(0,0,0,.85)); font-family: "Bahnschrift", sans-serif; }
-.cr-map-hit { filter: none; border-color: #fff; transform: scale(1.04); box-shadow: 0 0 30px rgba(255,255,255,.4); z-index: 1; }
-.cr-map-win { filter: none; border-color: #FF4655; transform: scale(1.08); box-shadow: 0 0 50px rgba(255,70,85,.8); z-index: 1; }
-.cr-map-big { position: absolute; left: 740px; top: 590px; width: 1120px; aspect-ratio: 16 / 9; border: 4px solid #FF4655; box-shadow: 0 0 80px rgba(255,70,85,.7); overflow: hidden; }
-.cr-map-big img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.cr-map-big-name { position: absolute; right: 0; bottom: 0; padding: 60px 40px 22px; font-size: 64px; font-weight: 900; font-style: italic; letter-spacing: .06em; background: linear-gradient(transparent, rgba(0,0,0,.85)); font-family: "Bahnschrift", sans-serif; }
+.cr-map span {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 0 6px; text-align: center; font-weight: 900; font-size: 22px;
+  letter-spacing: .12em; background: linear-gradient(transparent, rgba(20,19,32,.9)); font-family: "Bahnschrift", sans-serif;
+}
+.cr-map-hit { filter: none; transform: scale(1.05); border-color: #ffd83b; z-index: 1; }
+.cr-maps-done .cr-map { opacity: .35; }
+.cr-maps-done .cr-map-win { opacity: 1; }
+.cr-map-win {
+  filter: drop-shadow(0 0 18px #ffd83b); transform: scale(1.1); border-color: #ffd83b; z-index: 2; overflow: visible;
+  animation: cr-map-glow 1.8s ease-in-out infinite;
+}
+.cr-map-win img { border-radius: 12px; }
+@keyframes cr-map-glow {
+  0%, 100% { filter: drop-shadow(0 0 8px #ffd83b); }
+  50% { filter: drop-shadow(0 0 30px #ffd83b); }
+}
+.cr-map-pick {
+  position: absolute; right: -16px; top: -18px; transform: rotate(8deg); z-index: 3;
+  background: #ffd83b; color: var(--navy); font-family: "Bahnschrift", sans-serif; font-weight: 900; font-style: italic;
+  font-size: 28px; padding: 2px 16px; border-radius: 12px; border: 4px solid #fff; box-shadow: 0 0 0 4px var(--navy), 0 6px 0 4px var(--navy);
+}
 
-/* 試合中のカード */
-.cr-mine { position: relative; width: 372px; display: flex; background: rgba(15,25,35,.9); border-left: 6px solid #FF4655; box-shadow: 0 4px 18px rgba(0,0,0,.5); overflow: hidden; }
-.cr-mine-DEF { border-left-color: #46CBFF; }
-.cr-mine-chaos { box-shadow: 0 0 22px rgba(255,70,85,.55), 0 4px 18px rgba(0,0,0,.5); }
-.cr-mine-face { width: 104px; flex: none; overflow: hidden; background: #000; }
-.cr-mine-face img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
-.cr-mine-txt { padding: 10px 12px; flex: 1; min-width: 0; }
-.cr-mine-who { font-size: 16px; color: rgba(255,255,255,.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
-.cr-mine-ag { font-size: 22px; font-weight: 900; font-style: italic; margin-bottom: 6px; }
+/* 試合中のカード（ミニマップの下）。左の帯の色が最初の陣営 */
+.cr-mine {
+  position: relative; width: 372px; display: flex; overflow: hidden; border-radius: 14px;
+  background: rgba(29,28,48,.94); border: 3px solid rgba(255,255,255,.9); box-shadow: 0 0 0 3px var(--navy), 0 6px 0 3px var(--navy);
+}
+.cr-mine::before { content: ""; width: 8px; flex: none; background: #FF4655; }
+.cr-mine-DEF::before { background: #2fb3ea; }
+.cr-mine-face { width: 100px; flex: none; overflow: hidden; background: #0e0d18; }
+.cr-mine-face img { width: 100%; height: 100%; object-fit: cover; object-position: center 12%; display: block; }
+.cr-mine-txt { padding: 10px 12px 12px; flex: 1; min-width: 0; border-left: 3px solid var(--rc); }
+.cr-mine-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cr-mine-ag { font-size: 22px; font-weight: 900; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cr-mine p { margin: 6px 0 0; font-size: 17px; font-weight: 700; line-height: 1.4; white-space: pre-line; }

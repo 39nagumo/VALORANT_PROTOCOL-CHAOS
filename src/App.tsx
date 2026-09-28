@@ -150,7 +150,7 @@ function App() {
         </div>
       )}
 
-      <main className="relative z-10 container mx-auto px-4 py-8 max-w-7xl min-h-screen flex flex-col">
+      <main className={`relative z-10 container mx-auto px-4 min-h-screen flex flex-col ${path.startsWith('/r/') ? 'max-w-[1760px] py-4' : 'max-w-7xl py-8'}`}>
         <header className={`transition-all duration-700 ease-out ${isCompactHeader ? 'mb-4 text-left flex items-end gap-6' : 'mb-0 mt-0 text-center'}`}>
           <button type="button" onClick={() => navigate('/')} className="inline-block relative" aria-label="トップへ">
             <img
