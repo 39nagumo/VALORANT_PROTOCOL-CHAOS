@@ -2,8 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ClientMessage, RoomState, ServerMessage } from '../logic/room';
 import { eventDuration } from '../logic/room';
 
-// 本番は別ドメインの同期サーバー、ローカルは Vite のプロキシ（/rs）を使う
-const SERVER = (import.meta.env.VITE_ROOM_SERVER as string | undefined)?.replace(/\/$/, '') ?? '';
+// 公開中の同期サーバー（Cloudflare Workers）。ローカル開発では Vite のプロキシ（/rs）を使う。
+// 環境変数 VITE_ROOM_SERVER があればそちらを優先する
+const PRODUCTION_SERVER = 'https://chaos-gacha-rooms.39nagumo.workers.dev';
+const SERVER = ((import.meta.env.VITE_ROOM_SERVER as string | undefined)
+  ?? (import.meta.env.PROD ? PRODUCTION_SERVER : '')).replace(/\/$/, '');
 
 const wsUrl = (path: string) => {
   if (SERVER) return SERVER.replace(/^http/, 'ws') + path;
