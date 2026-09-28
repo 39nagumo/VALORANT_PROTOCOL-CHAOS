@@ -13,7 +13,7 @@ export function OverlayPage() {
   const [params] = useSearchParams();
   const part = params.get('part') ?? 'all';
   const x = Number(params.get('x') ?? 24);
-  const y = Number(params.get('y') ?? 410);
+  const y = Number(params.get('y') ?? 478);
   const s = Number(params.get('s') ?? 1);
 
   useEffect(() => {

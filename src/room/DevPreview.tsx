@@ -33,7 +33,8 @@ export function DevPreview() {
     <div style={{ position: 'fixed', inset: 0, background: p.get('bg') === 'shot' ? 'url(/@fs/C:/Claude/chaos-gacha/.dev/bg.webp) center/cover' : game ? 'linear-gradient(180deg,#4d6275 0%,#8a8f86 45%,#5b574d 46%,#3b3934 100%)' : undefined }}>
       <Stage>
         {game && <div style={{ position: 'absolute', left: 0, top: 0, right: 0, height: 50, background: 'rgba(15,20,28,.85)', color: '#fff', fontSize: 30, fontWeight: 900, padding: '4px 20px' }}>PLAY（ゲーム上部のバーの仮）</div>}
-        {kind === 'card' && game && <div style={{ position: 'absolute', left: 24, top: 24, width: 372, height: 372, background: 'rgba(10,16,22,.72)', border: '2px solid rgba(255,255,255,.3)', color: 'rgba(255,255,255,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>ミニマップ（仮）</div>}
+        {kind === 'card' && game && <div style={{ position: 'absolute', left: 18, top: 12, width: 456, height: 456, borderRadius: '50%', border: '2px solid rgba(255,255,255,.4)' }} />}
+        {kind === 'card' && game && <div style={{ position: 'absolute', left: 60, top: 60, width: 360, height: 360, background: 'rgba(10,16,22,.72)', border: '2px solid rgba(255,255,255,.3)', color: 'rgba(255,255,255,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>ミニマップ（仮）</div>}
         {kind === 'team' && <TeamReveal roll={roll} event={team} t={t} meId={p.get('me')} />}
         {kind === 'map' && <MapReveal event={map} t={t} mode="BAN" marks={['ascent']} />}
         {kind === 'binds' && (
@@ -48,7 +49,7 @@ export function DevPreview() {
         )}
         {kind === 'board' && <MapBoard mode={(p.get('mode') ?? 'BAN') as 'PICK' | 'BAN'} marks={['ascent', 'bind', 'lotus']} history={['pearl']} by="なぐも" />}
         {kind === 'card' && (
-          <div style={{ position: 'absolute', left: 24, top: 410 }}>
+          <div style={{ position: 'absolute', left: 24, top: 478 }}>
             <MyCard slot={roll.slots[Number(p.get('i') ?? 1)]} side={side}
               reroll={p.get('reroll') ? { target: p.get('reroll') as 'agent' | 'bind', t, seed: 'x' } : null} />
           </div>

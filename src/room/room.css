@@ -48,7 +48,9 @@
   box-shadow: 0 3px 0 var(--navy);
 }
 .cr-agent { position: absolute; left: 16px; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 2px; }
+.cr-role svg { filter: drop-shadow(0 2px 0 var(--navy)) drop-shadow(0 0 1px var(--navy)); flex: none; }
 .cr-role {
+  display: inline-flex; align-items: center; gap: 6px;
   font-family: "Bahnschrift", sans-serif; font-weight: 900; font-size: 17px; letter-spacing: .14em; color: rgba(255,255,255,.85);
   text-shadow: 0 2px 0 var(--navy), 2px 0 0 var(--navy), -2px 0 0 var(--navy), 0 -2px 0 var(--navy);
 }
@@ -149,6 +151,8 @@
 .cr-board { transition: filter .25s, opacity .25s, transform .25s; }
 .cr-map-in { filter: none; }
 .cr-map-out { filter: grayscale(1) brightness(.45); opacity: .6; }
+/* PICKでまだ選ばれていないマップ：これから選ぶので、少し暗くするだけにする */
+.cr-map-unpicked { filter: brightness(.72) saturate(.85); opacity: .92; }
 .cr-map-picked { border-color: #FF4655; transform: scale(1.04); }
 .cr-map-cand { filter: none; }
 .cr-map-mark {

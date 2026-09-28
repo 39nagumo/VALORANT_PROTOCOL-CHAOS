@@ -3,6 +3,7 @@ import type { Agent, Bind } from '../logic/gacha';
 import { agentsOfRole, bindsOfRarity } from '../logic/reroll';
 import { MAPS, mapImage } from '../data/maps';
 import { RoomEvent, Side, TeamRoll, TeamSlot, TEAM_INTRO_MS, TEAM_STEP_MS, MAP_SPIN_MS, type MapMode } from '../logic/room';
+import { RoleIcon } from './RoleIcon';
 import './room.css';
 
 // 1人ぶんの演出の中の区切り（TEAM_STEP_MS の中で）
@@ -192,7 +193,7 @@ function RevealCard({ slot, seed, local, reroll, mine }: {
           <div className="cr-art-fade" />
           <div className="cr-pname" style={{ fontSize: nameFontSize(slot.name) }}>{slot.name}</div>
           <div className="cr-agent">
-            <span className="cr-role">{ROLE_LABEL[slot.agent.role]}</span>
+            <span className="cr-role"><RoleIcon role={slot.agent.role} size={24} />{ROLE_LABEL[slot.agent.role]}</span>
             <span className="cr-aname">{faceSpin ? '？？？' : slot.agent.name}</span>
           </div>
           {faceFlash > 0 && <div className="cr-flash-white" style={{ opacity: faceFlash }} />}
@@ -279,7 +280,7 @@ export function MapBoard({ mode, marks, history, by }: { mode: MapMode; marks: s
           const used = history.includes(m.id);
           const out = used || (mode === 'PICK' ? !marked : marked);
           return (
-            <div key={m.id} className={`cr-map cr-board ${out ? 'cr-map-out' : 'cr-map-in'} ${mode === 'PICK' && marked ? 'cr-map-picked' : ''}`}>
+            <div key={m.id} className={`cr-map cr-board ${out ? (used || mode === 'BAN' ? 'cr-map-out' : 'cr-map-unpicked') : 'cr-map-in'} ${mode === 'PICK' && marked ? 'cr-map-picked' : ''}`}>
               <img src={mapImage(m)} alt="" />
               <span>{m.name}</span>
               {used ? <div className="cr-map-mark cr-mark-used">済</div>

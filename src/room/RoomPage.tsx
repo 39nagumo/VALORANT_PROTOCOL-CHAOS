@@ -8,6 +8,7 @@ import {
 import { createRoom, useRoom, useServerNow } from './connection';
 import { adoptUid, getSavedName, getUid, overlayUrl, saveName } from './identity';
 import { MapReveal, RarityBadge, ROLE_LABEL, SIDE_LABEL, Stage, TeamReveal } from './reveal';
+import { RoleIcon } from './RoleIcon';
 
 const SEAT_NEXT: Record<Seat, Seat> = { WATCH: 'ATK', ATK: 'DEF', DEF: 'WATCH' };
 const SEAT_STYLE: Record<Seat, string> = {
@@ -280,7 +281,9 @@ function Guide({ step, state, locked, act }: { step: StepKey; state: RoomState; 
   let action: ReactNode = null;
   switch (step) {
     case 'gather':
-      text = <>左の名簿で <b>ATK と DEF に5人ずつ</b> 振り分けましょう（今 ATK {n('ATK')}/5・DEF {n('DEF')}/5）。</>;
+      text = n('ATK') > TEAM_SIZE || n('DEF') > TEAM_SIZE
+        ? <><b className="text-amber-300">{n('ATK') > TEAM_SIZE ? `ATKが${n('ATK')}人` : ''}{n('ATK') > TEAM_SIZE && n('DEF') > TEAM_SIZE ? '・' : ''}{n('DEF') > TEAM_SIZE ? `DEFが${n('DEF')}人` : ''}</b> います。5人ずつにしてください（今 ATK {n('ATK')}/5・DEF {n('DEF')}/5）。</>
+        : <>左の名簿で <b>ATK と DEF に5人ずつ</b> 振り分けましょう（今 ATK {n('ATK')}/5・DEF {n('DEF')}/5）。</>;
       action = <button className={btnGhost} onClick={() => act({ type: 'randomTeams' })}>ランダムでチーム分け</button>;
       break;
     case 'atk':
@@ -364,7 +367,10 @@ function Roster({ members, memberId, act, focus }: { members: Member[]; memberId
           </li>
         ))}
       </ul>
-      <div className="text-[11px] text-gray-500 mt-2">ATK {count('ATK')}/{TEAM_SIZE}・DEF {count('DEF')}/{TEAM_SIZE}</div>
+      <div className="text-[11px] text-gray-500 mt-2">
+        <span className={count('ATK') > TEAM_SIZE ? 'text-amber-300 font-bold' : ''}>ATK {count('ATK')}/{TEAM_SIZE}</span>・
+        <span className={count('DEF') > TEAM_SIZE ? 'text-amber-300 font-bold' : ''}>DEF {count('DEF')}/{TEAM_SIZE}</span>
+      </div>
       <button className={`${btnGhost} w-full mt-2`} onClick={() => act({ type: 'randomTeams' })}>ランダムでチーム分け</button>
     </section>
   );
@@ -395,7 +401,9 @@ function TeamPanel({ side, state, locked, act, rerolling, focus }: {
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
                   <span className="font-bold text-sm truncate">{s.name}</span>
-                  <span className="text-[11px] text-gray-400 truncate">{s.agent.name}・{ROLE_LABEL[s.agent.role]}</span>
+                  <span className="text-[11px] text-gray-400 truncate inline-flex items-center gap-1">
+                    <RoleIcon role={s.agent.role} size={12} />{s.agent.name}・{ROLE_LABEL[s.agent.role]}
+                  </span>
                 </div>
                 <div className="flex items-start gap-1.5 mt-0.5">
                   <RarityBadge rarity={s.bind.rarity} size="sm" />
@@ -417,7 +425,8 @@ function TeamPanel({ side, state, locked, act, rerolling, focus }: {
           <div className="mt-2 text-xs">{seated.length}/{TEAM_SIZE}人・未抽選</div>
         </div>
       )}
-      {changed && <p className="text-xs text-amber-300 mt-2">メンバーが変わっています。回し直すと反映されます。</p>}
+      {seated.length > TEAM_SIZE && <p className="text-xs text-amber-300 mt-2">{seated.length}人います。5人にすると回せます。</p>}
+      {changed && seated.length <= TEAM_SIZE && <p className="text-xs text-amber-300 mt-2">メンバーが変わっています。回し直すと反映されます。</p>}
     </section>
   );
 }

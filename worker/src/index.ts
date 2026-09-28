@@ -177,10 +177,8 @@ export class Room extends DurableObject<Env> {
       case 'seat': {
         const m = s.members.find(x => x.id === msg.memberId);
         if (!m) throw new UserError('名簿に見つかりません');
-        if (msg.seat !== 'WATCH' && msg.seat !== m.seat &&
-            s.members.filter(x => x.seat === msg.seat).length >= TEAM_SIZE) {
-          throw new UserError(`${msg.seat === 'ATK' ? 'ATTACKER' : 'DEFENDER'}は既に${TEAM_SIZE}人います`);
-        }
+        if (msg.seat !== 'ATK' && msg.seat !== 'DEF' && msg.seat !== 'WATCH') return;
+        // 振り分けの途中で一時的に5人を超えてもよい（回すときに5人ちょうどかを見る）
         m.seat = msg.seat;
         break;
       }
@@ -197,7 +195,7 @@ export class Room extends DurableObject<Env> {
       case 'roll': {
         busy();
         const players = s.members.filter(m => m.seat === msg.side);
-        if (players.length !== TEAM_SIZE) throw new UserError(`${TEAM_SIZE}人そろってから回してください（今${players.length}人）`);
+        if (players.length !== TEAM_SIZE) throw new UserError(`${TEAM_SIZE}人ちょうどにしてから回してください（今${players.length}人）`);
         const res = new GachaSystem().runGacha(players.map(p => p.name));
         s.teams[msg.side] = {
           side: msg.side,
@@ -263,6 +261,7 @@ export class Room extends DurableObject<Env> {
       case 'newMatch':
         s.teams = { ATK: null, DEF: null };
         s.map = null;
+        s.mapMarks = []; // PICK/BANの印は消す（一度出たマップの「済」は残す）
         s.event = null;
         s.display = null;
         s.lockUntil = 0;
