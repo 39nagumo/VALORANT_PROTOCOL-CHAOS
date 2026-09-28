@@ -33,7 +33,7 @@ export function DevPreview() {
     <div style={{ position: 'fixed', inset: 0, background: game ? 'linear-gradient(180deg,#4d6275 0%,#8a8f86 45%,#5b574d 46%,#3b3934 100%)' : undefined }}>
       <Stage>
         {game && <div style={{ position: 'absolute', left: 24, top: 24, width: 372, height: 372, background: 'rgba(10,16,22,.72)', border: '2px solid rgba(255,255,255,.3)', color: 'rgba(255,255,255,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>ミニマップ（仮）</div>}
-        {kind === 'team' && <TeamReveal roll={roll} event={team} t={t} />}
+        {kind === 'team' && <TeamReveal roll={roll} event={team} t={t} meId={p.get('me')} />}
         {kind === 'map' && <MapReveal event={map} t={t} />}
         {kind === 'card' && (
           <div style={{ position: 'absolute', left: 24, top: 410 }}>

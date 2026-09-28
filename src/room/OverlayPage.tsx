@@ -58,7 +58,7 @@ export function OverlayPage() {
         )}
         {part !== 'card' && display?.kind === 'team' && state?.teams[display.side] && (
           <TeamReveal roll={state.teams[display.side]!} event={display} t={dT}
-            reroll={rerollAnim?.side === display.side ? rerollAnim : null} />
+            reroll={rerollAnim?.side === display.side ? rerollAnim : null} meId={memberId} />
         )}
         {part !== 'card' && display?.kind === 'map' && <MapReveal event={display} t={dT} />}
         {hint && (

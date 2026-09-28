@@ -238,7 +238,7 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
         <div className="fixed inset-0 z-[200] bg-black/85 flex items-center justify-center p-4">
           <div className="relative w-full max-w-[1600px] aspect-video">
             <Stage>
-              {modal.kind === 'team' && state.teams[modal.side] && <TeamReveal roll={state.teams[modal.side]!} event={modal} t={now - modal.startedAt} />}
+              {modal.kind === 'team' && state.teams[modal.side] && <TeamReveal roll={state.teams[modal.side]!} event={modal} t={now - modal.startedAt} meId={memberId} />}
               {modal.kind === 'map' && <MapReveal event={modal} t={now - modal.startedAt} />}
             </Stage>
             <button className="absolute -top-10 right-0 text-white/70 hover:text-white text-sm font-bold"

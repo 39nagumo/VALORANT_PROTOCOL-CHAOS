@@ -12,14 +12,15 @@
 .cr-side-MAP { --accent: #FF4655; --accent-rgb: 255, 70, 85; }
 .cr-bg { position: absolute; inset: 0; background: radial-gradient(ellipse at 35% 40%, rgba(var(--accent-rgb), .28) 0%, #0F1923 62%); background-color: #0F1923; }
 .cr-stripes { position: absolute; inset: 0; background: repeating-linear-gradient(-12deg, transparent 0 60px, rgba(var(--accent-rgb), .05) 60px 62px); }
+/* 背景は透過（ゲーム画面の上に重ねる）。文字は影で読めるようにする */
 .cr-title {
   position: absolute; left: 70px; top: 44px; margin: 0;
   font-size: 80px; font-weight: 900; font-style: italic; letter-spacing: .01em;
-  color: var(--accent); text-shadow: 0 0 30px rgba(var(--accent-rgb), .6);
+  color: var(--accent); text-shadow: 0 3px 14px rgba(0,0,0,.85), 0 0 30px rgba(var(--accent-rgb), .5);
   font-family: "Bahnschrift", "Segoe UI", sans-serif;
 }
-.cr-sub { position: absolute; left: 78px; top: 150px; font-size: 24px; letter-spacing: .3em; color: rgba(255,255,255,.6); font-family: "Bahnschrift", sans-serif; }
-.cr-by { position: absolute; left: 1100px; top: 150px; font-size: 24px; color: rgba(255,255,255,.8); border: 1px solid rgba(255,255,255,.25); padding: 6px 18px; background: rgba(0,0,0,.3); }
+.cr-sub { position: absolute; left: 78px; top: 150px; font-size: 24px; letter-spacing: .3em; color: rgba(255,255,255,.85); text-shadow: 0 2px 8px rgba(0,0,0,.9); font-family: "Bahnschrift", sans-serif; }
+.cr-by { position: absolute; left: 1100px; top: 150px; font-size: 24px; color: rgba(255,255,255,.8); border: 1px solid rgba(255,255,255,.25); padding: 6px 18px; background: rgba(15,25,35,.85); }
 
 .cr-cards { position: absolute; left: 60px; top: 232px; display: flex; gap: 18px; }
 .cr-card {
@@ -41,8 +42,17 @@
 .cr-bind p { margin: 16px 0 0; font-size: 21px; font-weight: 700; line-height: 1.55; white-space: pre-line; }
 .cr-rolling { color: rgba(255,255,255,.45); filter: blur(.6px); }
 .cr-wait { opacity: .5; }
-.cr-spin { border-color: rgba(var(--accent-rgb), .6); box-shadow: 0 0 30px rgba(var(--accent-rgb), .35); }
-.cr-fixed { box-shadow: 0 0 0 2px rgba(255,255,255,.15); }
+.cr-card { box-shadow: 0 6px 24px rgba(0,0,0,.55); }
+.cr-spin { border-color: rgba(255,255,255,.25); }
+.cr-wait { background: rgba(26,37,49,.85); }
+/* 見ている本人のカードだけに付く縁取り（色は縛りのレア度） */
+.cr-me { outline: 4px solid rgba(255,255,255,.7); outline-offset: 3px; }
+.cr-me-CHAOS { outline-color: #FF4655; } .cr-me-Epic { outline-color: #c084fc; } .cr-me-Exotic { outline-color: #4ade80; }
+.cr-me-Unique { outline-color: #f472b6; } .cr-me-Special { outline-color: #22d3ee; } .cr-me-Extra { outline-color: #facc15; }
+.cr-bind { position: relative; }
+.cr-bind-flash { position: absolute; inset: 0; border-radius: 8px; pointer-events: none; }
+.cr-bf-CHAOS { background: rgba(255,70,85,.45); } .cr-bf-Epic { background: rgba(192,132,252,.4); } .cr-bf-Exotic { background: rgba(74,222,128,.4); }
+.cr-bf-Unique { background: rgba(244,114,182,.4); } .cr-bf-Special { background: rgba(34,211,238,.4); } .cr-bf-Extra { background: rgba(250,204,21,.4); }
 .cr-chaos { border-color: #FF4655; box-shadow: 0 0 50px rgba(255,70,85,.8), 0 0 0 3px #FF4655; z-index: 2; }
 .cr-chaos .cr-bind { background: rgba(40,5,8,.85); border-color: rgba(255,70,85,.5); }
 .cr-burst {
