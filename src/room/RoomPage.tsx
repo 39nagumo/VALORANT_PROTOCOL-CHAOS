@@ -297,10 +297,7 @@ function Guide({ step, state, locked, act }: { step: StepKey; state: RoomState; 
     case 'map':
       if (state.display?.kind !== 'mapSetup') {
         text = <>DEFENDERも確認できたら、<b className="text-[#ffd83b]">マップ候補</b> をOBSに出してみんなで決めましょう。</>;
-        action = <>
-          <button className={`${btnYellow} text-base px-6`} disabled={locked} onClick={() => act({ type: 'showMapSetup' })}>マップ候補をOBSに出す</button>
-          <button className={btnGhost} disabled={locked || pool === 0} onClick={() => act({ type: 'mapRoll' })}>このまま回す（{pool}）</button>
-        </>;
+        action = <button className={`${btnYellow} text-base px-6`} disabled={locked} onClick={() => act({ type: 'showMapSetup' })}>マップ候補をOBSに出す</button>;
       } else {
         text = <>右の一覧で <b>PICK / BAN</b> すると、全員のOBSにそのまま映ります。決まったら回しましょう。</>;
         action = <button className={`${btnYellow} text-base px-6`} disabled={locked || pool === 0} onClick={() => act({ type: 'mapRoll' })}>マップを回す（{pool}）</button>;
@@ -420,9 +417,13 @@ function TeamPanel({ side, state, locked, act, rerolling, focus }: {
           ))}
         </ul>
       ) : (
-        <div className="border border-dashed border-white/10 p-3 text-sm text-gray-500 flex-1">
-          {seated.length ? seated.map(m => m.name).join(' / ') : '左の名簿でメンバーを振り分けてください'}
-          <div className="mt-2 text-xs">{seated.length}/{TEAM_SIZE}人・未抽選</div>
+        <div className="border border-dashed border-white/15 p-3 flex-1">
+          {seated.length ? (
+            <ul className="flex flex-wrap gap-1.5">
+              {seated.map(m => <li key={m.id} className="px-2.5 py-1 bg-white/10 text-white font-bold text-sm">{m.name}</li>)}
+            </ul>
+          ) : <span className="text-sm text-gray-400">左の名簿でメンバーを振り分けてください</span>}
+          <div className="mt-2 text-xs text-gray-400">{seated.length}/{TEAM_SIZE}人・未抽選</div>
         </div>
       )}
       {seated.length > TEAM_SIZE && <p className="text-xs text-amber-300 mt-2">{seated.length}人います。5人にすると回せます。</p>}
@@ -435,9 +436,11 @@ function MapPanel({ state, locked, act, focus }: { state: RoomState; locked: boo
   const mode: MapMode = state.mapMode ?? 'BAN';
   const marks = state.mapMarks ?? [];
   const pool = mapPool(MAPS.map(m => m.id), state);
+  // いきなり回すとOBS側の準備が追いつかないので、先に候補をOBSに出してから回す
+  const ready = state.display?.kind === 'mapSetup' || state.display?.kind === 'map';
   return (
     <section className={`${panel(focus)} h-full`}>
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex flex-wrap items-center gap-2 mb-2">
         <h3 className="font-black text-lg italic tracking-wider text-[#ffd83b]">MAP</h3>
         <div className="flex bg-black/40 p-0.5 border border-white/10">
           {(['PICK', 'BAN'] as MapMode[]).map(m => (
@@ -446,11 +449,13 @@ function MapPanel({ state, locked, act, focus }: { state: RoomState; locked: boo
           ))}
         </div>
         <button disabled={locked || state.display?.kind === 'mapSetup'} onClick={() => act({ type: 'showMapSetup' })}
-          className="ml-auto text-[11px] text-gray-400 hover:text-white underline disabled:opacity-40 disabled:no-underline">OBSに出す</button>
-        <button disabled={locked || pool.length === 0} onClick={() => act({ type: 'mapRoll' })}
-          className={`${btnYellow} py-1`}>回す（{pool.length}）</button>
+          className={`${btnGhost} ml-auto py-1 px-2 text-xs whitespace-nowrap`}>OBSに出す</button>
+        <button disabled={locked || pool.length === 0 || !ready} onClick={() => act({ type: 'mapRoll' })}
+          title={ready ? '' : '先に「OBSに出す」を押してください'}
+          className={`${btnYellow} py-1 px-3 whitespace-nowrap`}>回す（{pool.length}）</button>
       </div>
       <p className="text-[11px] text-gray-500 mb-2">
+        {!ready && <b className="text-[#ffd83b]">先に「OBSに出す」を押してください。</b>}
         {mode === 'PICK' ? '押したマップの中から選びます。' : '押したマップを除いて選びます。'}一度出たマップは次から外れます。
       </p>
       <div className="grid grid-cols-5 2xl:grid-cols-3 gap-1.5">

@@ -198,7 +198,7 @@ function RevealCard({ slot, seed, local, reroll, mine }: {
           </div>
           {faceFlash > 0 && <div className="cr-flash-white" style={{ opacity: faceFlash }} />}
         </div>
-        <div className={`cr-bind ${badgeOn && bindSpin ? 'cr-bind-rolling' : ''}`}>
+        <div className={`cr-bind ${badgeOn && bindSpin ? 'cr-bind-rolling' : ''} ${!bindSpin && slot.bind.rarity === 'CHAOS' ? 'cr-bind-CHAOS' : ''}`}>
           {badgeOn && <RarityBadge rarity={slot.bind.rarity} />}
           {(() => {
             const text = !bindSpin ? slot.bind.text : badgeOn ? rollingBind(slot.bind.rarity, spinSeed, spinTick(spinT, 90)) : '';
@@ -312,7 +312,7 @@ export function MyCard({ slot, side, reroll, appear = false }: {
 
   return (
     // 攻守は後半で入れ替わるので出さない。色はレア度だけ
-    <div className={`cr-mine cr-mine-${side} ${appear ? 'cr-mine-appear' : ''}`} style={{ '--rc': RARITY_COLOR[slot.bind.rarity] } as CSSProperties}>
+    <div className={`cr-mine cr-mine-${side} ${appear ? 'cr-mine-appear' : ''} ${slot.bind.rarity === 'CHAOS' && !spinning ? 'cr-mine-chaos' : ''}`} style={{ '--rc': RARITY_COLOR[slot.bind.rarity] } as CSSProperties}>
       {appear && <div className="cr-mine-appear-flash" />}
       <div className="cr-mine-face">
         <img src={face.image} alt="" className={spinning && reroll.target === 'agent' ? 'cr-blur' : ''} />

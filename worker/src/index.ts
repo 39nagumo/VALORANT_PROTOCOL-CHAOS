@@ -236,6 +236,9 @@ export class Room extends DurableObject<Env> {
       }
       case 'mapRoll': {
         busy();
+        if (s.display?.kind !== 'mapSetup' && s.display?.kind !== 'map') {
+          throw new UserError('先に「マップ候補をOBSに出す」を押してください');
+        }
         s.mapMode ??= 'BAN';
         const pool = mapPool(MAPS.map(m => m.id), s);
         if (pool.length === 0) {

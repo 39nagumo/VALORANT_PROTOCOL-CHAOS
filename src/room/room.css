@@ -84,16 +84,22 @@
 
 /* レア度 */
 .cr-badge {
-  display: inline-block; border-radius: 999px; padding: 4px 16px; font-weight: 900; letter-spacing: .12em; font-size: 17px;
-  font-family: "Bahnschrift", sans-serif; color: #2b2a3f; border: 3px solid #2b2a3f;
+  display: inline-block; border-radius: 7px; padding: 5px 16px 4px; font-weight: 900; letter-spacing: .18em; font-size: 16px;
+  font-family: "Bahnschrift", sans-serif; border: 2px solid; line-height: 1.2;
 }
-.cr-badge-sm { font-size: 12px; padding: 1px 9px; border-width: 2px; letter-spacing: .1em; }
-.cr-r-CHAOS { background: #FF4655; color: #fff; }
-.cr-r-Epic { background: #c084fc; }
-.cr-r-Exotic { background: #4ade80; }
-.cr-r-Unique { background: #f472b6; }
-.cr-r-Special { background: #22d3ee; }
-.cr-r-Extra { background: #facc15; }
+.cr-badge-sm { font-size: 11px; padding: 2px 8px 1px; border-radius: 5px; border-width: 1.5px; letter-spacing: .14em; }
+.cr-r-CHAOS { border-color: rgba(255,70,85,.8); background: rgba(255,70,85,.22); color: #FFE9EC; }
+.cr-r-Epic { border-color: rgba(192,132,252,.6); background: rgba(192,132,252,.16); color: #f3e8ff; }
+.cr-r-Exotic { border-color: rgba(74,222,128,.6); background: rgba(74,222,128,.16); color: #dcfce7; }
+.cr-r-Unique { border-color: rgba(244,114,182,.6); background: rgba(244,114,182,.16); color: #fce7f3; }
+.cr-r-Special { border-color: rgba(34,211,238,.6); background: rgba(34,211,238,.16); color: #cffafe; }
+.cr-r-Extra { border-color: rgba(250,204,21,.6); background: rgba(250,204,21,.16); color: #fef9c3; }
+/* CHAOSだけは縛りの欄ごと赤黒くして、他と差をつける（元のサイトと同じ考え方） */
+.cr-bind-CHAOS { background: linear-gradient(180deg, #2a0a10 0%, #16070b 100%); box-shadow: inset 0 0 40px -8px rgba(255,70,85,.55); color: #FFE9EC; }
+.cr-bind-CHAOS::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(-45deg, transparent 0 14px, rgba(255,70,85,.06) 14px 16px); }
+.cr-bind-CHAOS .cr-badge { box-shadow: 0 0 14px rgba(255,70,85,.55); }
+.cr-mine-chaos .cr-mine-txt { background: linear-gradient(180deg, #2a0a10 0%, #16070b 100%); box-shadow: inset 0 0 26px -6px rgba(255,70,85,.5); }
 
 /* マップ */
 .cr-maps { position: absolute; left: 64px; top: 300px; width: 1440px; display: flex; flex-wrap: wrap; gap: 26px 24px; }

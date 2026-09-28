@@ -3,6 +3,9 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { UID_PATTERN, eventDuration, type RoomDisplay, type Side, type TeamSlot } from '../logic/room';
 import { useCurrentRoomOf, useRoom, useServerNow } from './connection';
 import { MapBoard, MapReveal, MyCard, Stage, TeamReveal } from './reveal';
+import { MAPS, mapImage } from '../data/maps';
+import agentsData from '../data/agents.json';
+import type { Agent } from '../logic/gacha';
 
 /**
  * OBSのブラウザソース用（/me/:uid）。背景は透明。
@@ -15,6 +18,13 @@ export function OverlayPage() {
   const x = Number(params.get('x') ?? 24);
   const y = Number(params.get('y') ?? 478);
   const s = Number(params.get('s') ?? 1);
+
+  // 演出で使う画像は先に読み込んでおく（切り替わった瞬間に画像待ちで遅れないように）
+  useEffect(() => {
+    const urls = [...MAPS.map(mapImage), ...(agentsData as Agent[]).map(a => a.image), '/assets/CHAOS_fix.png'];
+    const imgs = urls.map(u => { const i = new Image(); i.decoding = 'async'; i.src = u; return i; });
+    return () => { imgs.length = 0; };
+  }, []);
 
   useEffect(() => {
     document.title = 'CHAOS GACHA OVERLAY';
