@@ -108,7 +108,7 @@ function JoinForm({ onJoin, onAdopt, error }: {
   return (
     <div className="max-w-md mx-auto mt-10 bg-[#172129]/90 border border-white/10 p-8">
       <h2 className="text-xl font-black mb-2">ルームに参加</h2>
-      <p className="text-sm text-gray-400 mb-6 leading-relaxed">
+      <p className="text-sm text-gray-400 mb-6 leading-relaxed [word-break:auto-phrase]">
         名前を入れて参加してください（次回からは自動で入ります）。<br />
         操作は代表1人でOK。ほかの人は参加してOBSにURLを入れるだけです。
       </p>
