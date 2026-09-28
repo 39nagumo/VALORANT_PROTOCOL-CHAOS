@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { GachaResult } from '../logic/gacha';
 import { AgentCard } from './AgentCard';
 
-// @ts-ignore
-import html2canvas from 'html2canvas';
+// 見た目どおりに画像化するため、ブラウザ自身の描画を使う html-to-image で保存する
+import { toPng } from 'html-to-image';
 
 interface Props {
   result: GachaResult;
@@ -103,38 +103,25 @@ export function GachaResultView({
     
     await new Promise((resolve) => setTimeout(resolve, 300));
     
-    const scrollX = window.scrollX;
-    const scrollY = window.scrollY;
-    window.scrollTo(0, 0);
-
+    const el = containerRef.current;
+    // 保存中だけ、カードの登場アニメーションを止めて最終の見た目にする
+    el.classList.add('cr-capturing');
     try {
-      const canvas = await html2canvas(containerRef.current, {
+      const dataUrl = await toPng(el, {
+        pixelRatio: 2,
         backgroundColor: '#0F1923',
-        scale: 2,
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
-        width: containerRef.current.clientWidth,
-        height: containerRef.current.clientHeight,
-        onclone: (clonedDoc) => {
-          const animatedElements = clonedDoc.querySelectorAll('.animate-card-in');
-          animatedElements.forEach((el) => {
-            const element = el as HTMLElement;
-            element.style.opacity = '1';
-            element.style.transform = 'none';
-            element.style.animation = 'none';
-          });
-        }
+        cacheBust: false,
+        // 鍵・振り直しのボタンは画像に入れない
+        filter: node => !(node instanceof HTMLElement && node.hasAttribute('data-html2canvas-ignore')),
       });
-
       const link = document.createElement('a');
       link.download = `valorant-chaos-gacha-${Date.now()}.png`;
-      link.href = canvas.toDataURL('image/png', 1.0);
+      link.href = dataUrl;
       link.click();
     } catch (e) {
       console.error('Failed to capture', e);
     } finally {
-      window.scrollTo(scrollX, scrollY);
+      el.classList.remove('cr-capturing');
       setSaving(false);
     }
   };
@@ -170,16 +157,16 @@ export function GachaResultView({
         </div>
 
         <div className="mb-4 text-center">
-          <h2 className={`text-xl md:text-3xl font-black uppercase italic leading-none transition-colors ${side === 'ATTACKER' ? 'text-[#FF4655]' : 'text-[#46CBFF]'}`}>
-            MISSION PROTOCOL / {side === 'ATTACKER' ? 'ATTACKER' : 'DEFENDER'}
-          </h2>
+          <div className="cr-theme flex justify-center pt-2 pb-1">
+            <div className={`cr-tag cr-tag-sm cr-tag-${side === 'ATTACKER' ? 'ATK' : 'DEF'}`}>{side}</div>
+          </div>
           <p className="text-[10px] md:text-xs text-gray-300/60 tracking-[0.2em] uppercase mt-2 leading-relaxed">
             5 Agents + Constraints (Per Player)
           </p>
         </div>
 
         <section className="w-full">
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-5 gap-4 px-1 pb-3">
             {initialResult.players.map((p, idx) => {
               const bind = initialResult.binds[idx];
               return (

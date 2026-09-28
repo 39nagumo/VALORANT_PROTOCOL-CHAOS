@@ -1,14 +1,22 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SubLinks } from './SubLinks';
+import { createRoom } from '../room/connection';
 
 const STEPS = [
-  { no: '01', label: 'SQUAD', title: '名前を入れる', text: ['カスタムに参加する5人の名前を入力。', '空欄のままでも回せます。'] },
-  { no: '02', label: 'GACHA', title: 'ガチャを回す', text: ['4ロールがそろうようにエージェントを割り振り、', '1人1つずつ縛りが決まります。', '縛りもエージェントも、個別再抽選ができます。'] },
-  { no: '03', label: 'SHARE', title: '結果を共有する', text: ['結果は画像で保存してDiscordでみんなへ共有。', 'マップもガチャで決められます。'] },
+  { no: '01', label: 'ROOM', title: 'ルームを作る', text: ['ルームを作って、招待リンクをDiscordに貼るだけ。', '参加した人の名前が名簿に並びます。'] },
+  { no: '02', label: 'GACHA', title: 'みんなで回す', text: ['ATKとDEFに5人ずつ振り分けて抽選。', 'エージェントと縛りが1人1つずつ決まり、', '1人だけの振り直しもできます。'] },
+  { no: '03', label: 'OBS', title: '配信に映す', text: ['OBSにURLを1回登録するだけ。', '抽選の演出が流れ、試合中は自分の縛りが', 'ミニマップの下に出続けます。'] },
 ];
 
 export function LandingPage() {
   const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const startRoom = async () => {
+    setBusy(true); setFailed(false);
+    try { navigate(`/r/${await createRoom()}`); } catch { setFailed(true); } finally { setBusy(false); }
+  };
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-12 duration-1000 max-w-5xl mx-auto">
@@ -18,16 +26,29 @@ export function LandingPage() {
           カスタムを、<span className="text-[#FF4655]">もっとカオスに。</span>
         </h1>
         <p className="text-gray-400 text-sm md:text-base leading-relaxed max-w-xl mx-auto [word-break:auto-phrase]">
-          5人の名前を入れるだけで、エージェントと縛りプレイをランダムに決定。<br className="hidden md:block" />
-          いつものカスタムが、笑いの絶えない試合に変わります。
+          エージェントと縛りプレイをランダムに決定。ルームを作ってリンクを共有すれば、<br className="hidden md:block" />
+          みんなの画面と配信に同じ抽選結果が出ます。いつものカスタムが、笑いの絶えない試合に。
         </p>
 
-        <button
-          onClick={() => navigate('/gacha')}
-          className="mt-10 bg-[#FF4655] hover:bg-[#D93645] text-white font-black py-4 px-14 uppercase tracking-[0.3em] text-sm transition-all transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_4px_0_#9d1c28]"
-        >
-          ガチャを始める
-        </button>
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+          <button
+            onClick={startRoom}
+            disabled={busy}
+            className="bg-[#FF4655] hover:bg-[#D93645] text-white font-black py-4 px-14 tracking-[0.3em] text-sm transition-all transform hover:-translate-y-0.5 active:translate-y-0 shadow-[0_4px_0_#9d1c28] disabled:opacity-60"
+          >
+            {busy ? '作成中…' : 'ルームを作る'}
+          </button>
+          <button
+            onClick={() => navigate('/gacha')}
+            className="border border-white/25 hover:border-white/60 hover:bg-white/5 text-white/85 font-black py-4 px-10 tracking-[0.3em] text-sm transition-all"
+          >
+            ひとりで回す
+          </button>
+        </div>
+        <p className="mt-4 text-xs text-gray-500 [word-break:auto-phrase]">
+          ルーム＝みんなで同じ結果を見る・OBSで配信に映す　／　ひとりで回す＝今までどおり画像で共有
+        </p>
+        {failed && <p className="text-[#FF4655] text-sm mt-3">ルームを作れませんでした。時間をおいてもう一度お試しください。</p>}
       </section>
 
       <section>

@@ -169,3 +169,30 @@
 .cr-mark-PICK { background: #FF4655; color: #fff; }
 .cr-mark-BAN { background: #5b5a70; color: #fff; }
 .cr-mark-used { background: #2b2a3f; color: rgba(255,255,255,.8); font-size: 24px; }
+
+/* ---- ひとりで回すときの結果画面（ルームと同じ見た目を、サイトの中の大きさで使う） ---- */
+.cr-theme { --navy: #2b2a3f; --card: #1d1c30; color: #fff; font-family: "Yu Gothic UI", "Hiragino Sans", "Meiryo", system-ui, sans-serif; }
+.cr-solo { width: 100%; }
+.cr-solo .cr-card { border-width: 4px; box-shadow: 0 0 0 4px var(--navy), 0 9px 0 4px var(--navy); border-radius: 18px; }
+.cr-solo .cr-art { height: 270px; }
+.cr-solo .cr-pname { font-size: 15px; padding: 3px 12px; left: 10px; top: 10px; max-width: calc(100% - 60px); }
+.cr-solo .cr-aname { font-size: 28px; }
+.cr-solo .cr-role { font-size: 13px; }
+.cr-solo .cr-bind { height: 200px; padding: 14px 10px; }
+.cr-solo .cr-bind p { margin-top: 10px; }
+.cr-solo .cr-badge { font-size: 13px; padding: 4px 12px 3px; }
+.cr-solo-btn {
+  position: absolute; z-index: 3; width: 30px; height: 30px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
+  background: rgba(29,28,48,.85); color: rgba(255,255,255,.55); border: 2px solid rgba(255,255,255,.25); font-size: 17px; line-height: 1;
+  transition: color .15s, border-color .15s, transform .5s;
+}
+.cr-solo-btn:hover { color: #fff; border-color: #fff; }
+.cr-solo-btn-agent { right: 10px; top: 10px; }
+.cr-solo-btn-agent:hover, .cr-solo-btn-bind:hover { transform: rotate(180deg); }
+.cr-solo-btn-lock { left: 8px; top: 8px; width: 28px; height: 28px; }
+.cr-solo-btn-lock.is-on { color: #fbbf24; border-color: rgba(251,191,36,.7); background: rgba(251,191,36,.12); }
+.cr-solo-btn-bind { right: 8px; top: 8px; width: 28px; height: 28px; font-size: 15px; }
+.cr-solo-locked { box-shadow: inset 0 0 0 2px rgba(251,191,36,.55), inset 0 0 30px -8px rgba(251,191,36,.35); }
+.cr-tag-sm { font-size: 30px; padding: 6px 22px 8px; border-width: 4px; box-shadow: 0 0 0 4px var(--navy), 0 7px 0 4px var(--navy); border-radius: 12px; }
+/* 画像保存中は、登場アニメーションを止めて最終の見た目で写す */
+.cr-capturing .animate-card-in { opacity: 1 !important; transform: none !important; animation: none !important; }
