@@ -108,10 +108,9 @@ function JoinForm({ onJoin, onAdopt, error }: {
   return (
     <div className="max-w-md mx-auto mt-10 bg-[#172129]/90 border border-white/10 p-8">
       <h2 className="text-xl font-black mb-2">ルームに参加</h2>
-      <p className="text-sm text-gray-400 mb-2 leading-relaxed">名簿に載せる名前を入れてください。次回からは自動で入ります。</p>
       <p className="text-sm text-gray-400 mb-6 leading-relaxed">
-        参加すると、自分専用の「OBS用URL」が使えるようになります。配信しない人も、参加だけしておけばOKです。
-        <b className="text-white">振り分けや抽選の操作は代表の1人がやるので、ほかの人は見ているだけで大丈夫です。</b>
+        名前を入れて参加してください（次回からは自動で入ります）。<br />
+        操作は代表1人でOK。ほかの人は参加してOBSにURLを入れるだけです。
       </p>
       <form onSubmit={submit} className="flex gap-2">
         <input value={name} maxLength={NAME_MAX} onChange={e => setName(e.target.value)} placeholder="名前"
@@ -350,9 +349,7 @@ function Guide({ step, state, locked, act }: { step: StepKey; state: RoomState; 
           </li>
         ))}
       </ol>
-        <span className="text-xs text-gray-400">
-          <b className="text-[#ffd83b]">操作は代表の1人でOK</b>（誰が押しても全員の画面とOBSが変わります）
-        </span>
+        <span className="text-xs text-gray-500">操作は代表1人でOK</span>
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-[#ffd83b] font-black text-sm">▶ 次にやること</span>
