@@ -209,11 +209,24 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
                 <li>ゲーム画面より上、V体より下に置いて、画面全体に広げます。</li>
                 <li>次回からは、新しいルームで「参加」を押すだけでOBSも切り替わります。</li>
               </ol>
-              <p className="mt-2 text-gray-500">カードの位置は URL の末尾に <code>?x=24&amp;y=410&amp;s=1</code>（横・縦・大きさ）で調整できます。</p>
+              <p className="mt-2 text-gray-500">カードの位置は URL の末尾に <code>?x=24&amp;y=478&amp;s=1</code>（横・縦・大きさ）で調整できます。</p>
             </div>
           </details>
         </div>
       </div>
+
+      {/* OBSは「最後に参加したルーム」を映すので、別のルームを開いていると映らない。気づけるように知らせる */}
+      {me && !me.online && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 px-4 py-2 bg-[#46CBFF]/10 border border-[#46CBFF]/40 text-sm">
+          <span>
+            <b className="text-[#46CBFF]">あなたのOBSはこのルームを映していません。</b>
+            別のルームを表示中か、OBSが起動していません（OBSを使わない人はそのままでOKです）。
+          </span>
+          <button className={`${btnBlue} ml-auto py-1`} onClick={() => act({ type: 'join', uid, name: me.name })}>
+            OBSをこのルームに切り替える
+          </button>
+        </div>
+      )}
 
       <Guide step={step} state={state} locked={locked} act={act} />
 
