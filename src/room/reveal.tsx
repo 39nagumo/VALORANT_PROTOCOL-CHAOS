@@ -39,14 +39,42 @@ function rollingBind(rarity: Bind['rarity'], seed: string, tick: number): string
 /** 回っている間の表示を切り替える目安。押してから始まるまで（マイナスの時間）も止めずに回す */
 const spinTick = (t: number, every: number) => Math.floor((t + 100000) / every);
 
+/**
+ * 縛り文の改行を今のカード幅に合わせて整える。
+ * 元の文の区切り（※・括弧で始まる行、。！】などで終わる行）だけ残し、
+ * 途中の改行はつなげて、文節の切れ目で自動的に折り返させる
+ */
+export function bindBlocks(text: string): string[] {
+  const blocks: string[] = [];
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (!line) continue;
+    const prev = blocks[blocks.length - 1];
+    const startsNew = /^[※（(【[]/.test(line);
+    const prevEnds = prev !== undefined && /[。！!？?】』]$/.test(prev);
+    if (prev === undefined || startsNew || prevEnds) blocks.push(line);
+    else blocks[blocks.length - 1] = prev + line;
+  }
+  return blocks;
+}
+
 /** 長い縛り文は、カードからはみ出ないよう文字を小さくする */
 export function bindFontSize(text: string, base = 20): number {
   const len = text.replace(/\n/g, '').length;
-  const lines = text.split('\n').length;
-  if (len > 70 || lines > 5) return base - 6;
-  if (len > 52 || lines > 4) return base - 4;
-  if (len > 36) return base - 2;
+  const blocks = bindBlocks(text).length;
+  if (len > 70 || blocks > 4) return base - 5;
+  if (len > 50 || blocks > 3) return base - 3;
+  if (len > 34) return base - 2;
   return base;
+}
+
+/** 縛り文を、整えた区切りごとに表示する */
+export function BindText({ text, className = '', size }: { text: string; className?: string; size: number }) {
+  return (
+    <p className={`cr-bindtext ${className}`} style={{ fontSize: size }}>
+      {bindBlocks(text).map((b, i) => <span key={i}>{b}</span>)}
+    </p>
+  );
 }
 
 /** 長い名前は文字を小さくして、なるべく全部見えるようにする */
@@ -164,7 +192,7 @@ function RevealCard({ slot, seed, local, reroll, mine }: {
           <div className="cr-art-fade" />
           <div className="cr-pname" style={{ fontSize: nameFontSize(slot.name) }}>{slot.name}</div>
           <div className="cr-agent">
-            <span className={`cr-role cr-role-${slot.agent.role}`}>{ROLE_LABEL[slot.agent.role]}</span>
+            <span className="cr-role">{ROLE_LABEL[slot.agent.role]}</span>
             <span className="cr-aname">{faceSpin ? '？？？' : slot.agent.name}</span>
           </div>
           {faceFlash > 0 && <div className="cr-flash-white" style={{ opacity: faceFlash }} />}
@@ -173,7 +201,7 @@ function RevealCard({ slot, seed, local, reroll, mine }: {
           {badgeOn && <RarityBadge rarity={slot.bind.rarity} />}
           {(() => {
             const text = !bindSpin ? slot.bind.text : badgeOn ? rollingBind(slot.bind.rarity, spinSeed, spinTick(spinT, 90)) : '';
-            return <p className={bindSpin ? 'cr-rolling' : ''} style={{ fontSize: bindFontSize(text) }}>{text}</p>;
+            return <BindText text={text} className={bindSpin ? 'cr-rolling' : ''} size={bindFontSize(text)} />;
           })()}
           {bindFlash > 0 && <div className="cr-bind-flash" style={{ opacity: bindFlash }} />}
         </div>
@@ -201,13 +229,19 @@ function mapSchedule(seed: string, poolSize: number, resultIndex: number) {
   return { times, seq };
 }
 
-export function MapReveal({ event, t }: { event: Extract<RoomEvent, { kind: 'map' }>; t: number }) {
+export function MapReveal({ event, t, mode = 'BAN', marks = [] }: {
+  event: Extract<RoomEvent, { kind: 'map' }>;
+  t: number;
+  /** 候補を選んだときの印（候補外のマップを、選んでいたときと同じ見た目で残す） */
+  mode?: MapMode;
+  marks?: string[];
+}) {
   const pool = useMemo(() => MAPS.filter(m => event.pool.includes(m.id)), [event.pool]);
   const resultIndex = pool.findIndex(m => m.id === event.mapId);
   const { times, seq } = useMemo(() => mapSchedule(event.id, pool.length, resultIndex), [event.id, pool.length, resultIndex]);
   let k = 0;
   while (k + 1 < times.length && times[k + 1] <= t) k++;
-  const current = t < 0 ? -1 : seq[k];
+  const currentId = t < 0 ? null : pool[seq[k]]?.id ?? null;
   const stopped = t >= MAP_SPIN_MS;
   const winFlash = stopped ? Math.max(0, 1 - (t - MAP_SPIN_MS) / 400) : 0;
 
@@ -215,12 +249,15 @@ export function MapReveal({ event, t }: { event: Extract<RoomEvent, { kind: 'map
     <div className="cr-reveal cr-side-MAP">
       <Header label="MAP" tone="MAP" by={event.by} t={t} />
       <div className={`cr-maps ${stopped ? 'cr-maps-done' : ''}`}>
-        {pool.map((m, i) => {
-          const hit = i === current;
+        {MAPS.map(m => {
+          const inPool = event.pool.includes(m.id);
+          const hit = m.id === currentId;
+          const cls = !inPool ? 'cr-map-out' : hit ? (stopped ? 'cr-map-win' : 'cr-map-hit') : 'cr-map-cand';
           return (
-            <div key={m.id} className={`cr-map ${hit ? (stopped ? 'cr-map-win' : 'cr-map-hit') : ''}`}>
+            <div key={m.id} className={`cr-map cr-board ${cls}`}>
               <img src={mapImage(m)} alt="" />
               <span>{m.name}</span>
+              {!inPool && mode === 'BAN' && marks.includes(m.id) && <div className="cr-map-mark cr-mark-BAN">BAN</div>}
               {hit && stopped && <div className="cr-map-pick">PICK!</div>}
               {hit && winFlash > 0 && <div className="cr-flash-white" style={{ opacity: winFlash * 0.8 }} />}
             </div>
@@ -246,7 +283,7 @@ export function MapBoard({ mode, marks, history, by }: { mode: MapMode; marks: s
               <img src={mapImage(m)} alt="" />
               <span>{m.name}</span>
               {used ? <div className="cr-map-mark cr-mark-used">済</div>
-                : marked && <div className={`cr-map-mark cr-mark-${mode}`}>{mode}</div>}
+                : marked && mode === 'BAN' && <div className="cr-map-mark cr-mark-BAN">BAN</div>}
             </div>
           );
         })}
@@ -257,9 +294,11 @@ export function MapBoard({ mode, marks, history, by }: { mode: MapMode; marks: s
 
 // ---------------------------------------------------------------- 試合中に出し続けるカード
 
-export function MyCard({ slot, side, reroll }: {
+export function MyCard({ slot, side, reroll, appear = false }: {
   slot: TeamSlot;
   side: Side;
+  /** 結果画面を閉じて試合開始になった瞬間の登場演出 */
+  appear?: boolean;
   /** 振り直しの演出中なら、その対象と経過時間 */
   reroll?: RerollAnim | null;
 }) {
@@ -272,7 +311,8 @@ export function MyCard({ slot, side, reroll }: {
 
   return (
     // 攻守は後半で入れ替わるので出さない。色はレア度だけ
-    <div className={`cr-mine cr-mine-${side}`} style={{ '--rc': RARITY_COLOR[slot.bind.rarity] } as CSSProperties}>
+    <div className={`cr-mine cr-mine-${side} ${appear ? 'cr-mine-appear' : ''}`} style={{ '--rc': RARITY_COLOR[slot.bind.rarity] } as CSSProperties}>
+      {appear && <div className="cr-mine-appear-flash" />}
       <div className="cr-mine-face">
         <img src={face.image} alt="" className={spinning && reroll.target === 'agent' ? 'cr-blur' : ''} />
       </div>
@@ -281,7 +321,7 @@ export function MyCard({ slot, side, reroll }: {
           <span className="cr-mine-ag">{spinning && reroll.target === 'agent' ? '？？？' : slot.agent.name}</span>
           <RarityBadge rarity={slot.bind.rarity} size="sm" />
         </div>
-        <p className={spinning && reroll.target === 'bind' ? 'cr-rolling' : ''} style={{ fontSize: Math.max(15, bindFontSize(text, 17)) }}>{text}</p>
+        <BindText text={text} className={spinning && reroll.target === 'bind' ? 'cr-rolling' : ''} size={Math.max(15, bindFontSize(text, 17))} />
       </div>
       {flash > 0 && <div className="cr-flash-white" style={{ opacity: flash * 0.8 }} />}
     </div>

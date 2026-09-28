@@ -72,6 +72,7 @@ export type ClientMessage =
   | { type: 'mapMode'; mode: MapMode }
   | { type: 'mapMark'; mapId: string }
   | { type: 'mapRoll' }
+  | { type: 'showMapSetup' }
   | { type: 'mapClearHistory' }
   | { type: 'closeDisplay' }
   | { type: 'newMatch' }

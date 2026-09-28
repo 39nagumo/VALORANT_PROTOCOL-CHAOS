@@ -292,8 +292,16 @@ function Guide({ step, state, locked, act }: { step: StepKey; state: RoomState; 
       action = <button className={`${btnBlue} text-base px-6`} disabled={locked} onClick={() => act({ type: 'roll', side: 'DEF' })}>DEFENDERを回す</button>;
       break;
     case 'map':
-      text = <>DEFENDERも確認して、OKなら <b className="text-[#ffd83b]">マップ</b> を回しましょう（右の一覧で PICK / BAN すると、その様子もOBSに映ります）。</>;
-      action = <button className={`${btnYellow} text-base px-6`} disabled={locked || pool === 0} onClick={() => act({ type: 'mapRoll' })}>マップを回す（{pool}）</button>;
+      if (state.display?.kind !== 'mapSetup') {
+        text = <>DEFENDERも確認できたら、<b className="text-[#ffd83b]">マップ候補</b> をOBSに出してみんなで決めましょう。</>;
+        action = <>
+          <button className={`${btnYellow} text-base px-6`} disabled={locked} onClick={() => act({ type: 'showMapSetup' })}>マップ候補をOBSに出す</button>
+          <button className={btnGhost} disabled={locked || pool === 0} onClick={() => act({ type: 'mapRoll' })}>このまま回す（{pool}）</button>
+        </>;
+      } else {
+        text = <>右の一覧で <b>PICK / BAN</b> すると、全員のOBSにそのまま映ります。決まったら回しましょう。</>;
+        action = <button className={`${btnYellow} text-base px-6`} disabled={locked || pool === 0} onClick={() => act({ type: 'mapRoll' })}>マップを回す（{pool}）</button>;
+      }
       break;
     case 'start':
       text = <>全部決まりました！OBSの結果画面を閉じると、各自のミニマップの下に縛りが出て <b>試合開始</b> です。</>;
@@ -428,8 +436,10 @@ function MapPanel({ state, locked, act, focus }: { state: RoomState; locked: boo
               className={`px-3 py-0.5 text-[11px] font-black tracking-widest ${mode === m ? (m === 'PICK' ? 'bg-[#FF4655] text-white' : 'bg-[#46CBFF] text-[#0F1923]') : 'text-white/40 hover:text-white'}`}>{m}</button>
           ))}
         </div>
+        <button disabled={locked || state.display?.kind === 'mapSetup'} onClick={() => act({ type: 'showMapSetup' })}
+          className="ml-auto text-[11px] text-gray-400 hover:text-white underline disabled:opacity-40 disabled:no-underline">OBSに出す</button>
         <button disabled={locked || pool.length === 0} onClick={() => act({ type: 'mapRoll' })}
-          className={`${btnYellow} ml-auto py-1`}>回す（{pool.length}）</button>
+          className={`${btnYellow} py-1`}>回す（{pool.length}）</button>
       </div>
       <p className="text-[11px] text-gray-500 mb-2">
         {mode === 'PICK' ? '押したマップの中から選びます。' : '押したマップを除いて選びます。'}一度出たマップは次から外れます。

@@ -5,7 +5,7 @@ import binds from '../data/binds.json';
 import type { Agent, BindRarity } from '../logic/gacha';
 import type { RoomEvent, Side, TeamRoll } from '../logic/room';
 import { MAPS } from '../data/maps';
-import { MapBoard, MapReveal, MyCard, Stage, TeamReveal } from './reveal';
+import { BindText, bindFontSize, MapBoard, MapReveal, MyCard, RarityBadge, RARITY_COLOR, Stage, TeamReveal } from './reveal';
 
 // 開発中だけ使う見た目の確認ページ（/dev/reveal?kind=team&t=5000）。本番ビルドには入らない
 const pickAgent = (name: string) => (agents as Agent[]).find(a => a.name === name)!;
@@ -35,7 +35,17 @@ export function DevPreview() {
         {game && <div style={{ position: 'absolute', left: 0, top: 0, right: 0, height: 50, background: 'rgba(15,20,28,.85)', color: '#fff', fontSize: 30, fontWeight: 900, padding: '4px 20px' }}>PLAY（ゲーム上部のバーの仮）</div>}
         {kind === 'card' && game && <div style={{ position: 'absolute', left: 24, top: 24, width: 372, height: 372, background: 'rgba(10,16,22,.72)', border: '2px solid rgba(255,255,255,.3)', color: 'rgba(255,255,255,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>ミニマップ（仮）</div>}
         {kind === 'team' && <TeamReveal roll={roll} event={team} t={t} meId={p.get('me')} />}
-        {kind === 'map' && <MapReveal event={map} t={t} />}
+        {kind === 'map' && <MapReveal event={map} t={t} mode="BAN" marks={['ascent']} />}
+        {kind === 'binds' && (
+          <div style={{ position: 'absolute', left: 20, top: 20, display: 'flex', flexWrap: 'wrap', gap: 14, width: 1880 }}>
+            {Object.entries(binds as Record<string, string[]>).flatMap(([rarity, list]) => list.map(text => ({ rarity: rarity as BindRarity, text })))
+              .slice(Number(p.get('from') ?? 0), Number(p.get('from') ?? 0) + 28).map((bd, i) => (
+                <div key={i} className="cr-card" style={{ width: 256, ['--rc' as string]: RARITY_COLOR[bd.rarity] }}>
+                  <div className="cr-bind"><RarityBadge rarity={bd.rarity} /><BindText text={bd.text} size={bindFontSize(bd.text)} /></div>
+                </div>
+              ))}
+          </div>
+        )}
         {kind === 'board' && <MapBoard mode={(p.get('mode') ?? 'BAN') as 'PICK' | 'BAN'} marks={['ascent', 'bind', 'lotus']} history={['pearl']} by="なぐも" />}
         {kind === 'card' && (
           <div style={{ position: 'absolute', left: 24, top: 410 }}>

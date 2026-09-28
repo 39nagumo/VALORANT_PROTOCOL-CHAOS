@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { UID_PATTERN, eventDuration, type Side, type TeamSlot } from '../logic/room';
+import { UID_PATTERN, eventDuration, type RoomDisplay, type Side, type TeamSlot } from '../logic/room';
 import { useCurrentRoomOf, useRoom, useServerNow } from './connection';
 import { MapBoard, MapReveal, MyCard, Stage, TeamReveal } from './reveal';
 
@@ -33,8 +33,25 @@ export function OverlayPage() {
   useEffect(() => { const t = window.setTimeout(() => setHint(false), 8000); return () => window.clearTimeout(t); }, []);
 
   // 抽選結果の画面は、誰かが「閉じる」を押すまで出し続ける
-  const display = state?.display ?? null;
-  const dT = display ? (display.id === skipEventId ? Infinity : now - display.startedAt) : 0;
+  const current = state?.display ?? null;
+
+  // 閉じられたら、結果画面はふっと消え、その後に自分のカードが光りながら出てくる
+  const [leaving, setLeaving] = useState<RoomDisplay | null>(null);
+  const [appear, setAppear] = useState(false);
+  const prev = useRef<RoomDisplay | null>(null);
+  useEffect(() => {
+    const was = prev.current;
+    prev.current = current;
+    if (!was || current) { setLeaving(null); return; }
+    setLeaving(was);
+    setAppear(true);
+    const t1 = window.setTimeout(() => setLeaving(null), 400);
+    const t2 = window.setTimeout(() => setAppear(false), 2200);
+    return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
+  }, [current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const display = current ?? leaving;
+  const dT = display ? (display.id === skipEventId || display === leaving ? Infinity : now - display.startedAt) : 0;
   const e = state?.event;
   const rerolling = e?.kind === 'reroll' && e.id !== skipEventId && now < e.startedAt + eventDuration(e) ? e : null;
   const rerollAnim = rerolling ? { index: rerolling.index, side: rerolling.side, target: rerolling.target, t: now - rerolling.startedAt, seed: rerolling.id } : null;
@@ -51,19 +68,23 @@ export function OverlayPage() {
   return (
     <div style={{ position: 'fixed', inset: 0 }}>
       <Stage>
-        {part !== 'reveal' && mine && !display && (
+        {part !== 'reveal' && mine && !current && (
           <div style={{ position: 'absolute', left: x, top: y, transform: `scale(${s})`, transformOrigin: '0 0' }}>
-            <MyCard slot={mine.slot} side={mine.side} reroll={myReroll} />
+            <MyCard slot={mine.slot} side={mine.side} reroll={myReroll} appear={appear} />
           </div>
         )}
+        <div className={leaving ? 'cr-leave' : ''} style={{ position: 'absolute', inset: 0 }}>
         {part !== 'card' && display?.kind === 'team' && state?.teams[display.side] && (
           <TeamReveal roll={state.teams[display.side]!} event={display} t={dT}
             reroll={rerollAnim?.side === display.side ? rerollAnim : null} meId={memberId} />
         )}
-        {part !== 'card' && display?.kind === 'map' && <MapReveal event={display} t={dT} />}
+        {part !== 'card' && display?.kind === 'map' && (
+          <MapReveal event={display} t={dT} mode={state?.mapMode ?? 'BAN'} marks={state?.mapMarks ?? []} />
+        )}
         {part !== 'card' && display?.kind === 'mapSetup' && state && (
           <MapBoard mode={state.mapMode ?? 'BAN'} marks={state.mapMarks ?? []} history={state.mapHistory ?? []} by={display.by} />
         )}
+        </div>
         {hint && (
           <div style={{ position: 'absolute', left: 24, top: 24, padding: '6px 14px', background: 'rgba(15,25,35,.85)', color: '#ECE8E1', fontSize: 18, borderLeft: '4px solid #FF4655' }}>
             CHAOS GACHA：{!valid ? 'URLが正しくありません' : !known ? '接続中…' : !roomId ? 'まだルームに参加していません' : memberId ? '接続しました' : 'ルームに接続中…'}

@@ -49,10 +49,9 @@
 }
 .cr-agent { position: absolute; left: 16px; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 2px; }
 .cr-role {
-  font-family: "Bahnschrift", sans-serif; font-weight: 900; font-size: 17px; letter-spacing: .14em;
+  font-family: "Bahnschrift", sans-serif; font-weight: 900; font-size: 17px; letter-spacing: .14em; color: rgba(255,255,255,.85);
   text-shadow: 0 2px 0 var(--navy), 2px 0 0 var(--navy), -2px 0 0 var(--navy), 0 -2px 0 var(--navy);
 }
-.cr-role-Duelist { color: #ffd83b; } .cr-role-Initiator { color: #ff9ecf; } .cr-role-Controller { color: #cfa8ff; } .cr-role-Sentinel { color: #6ee7f9; }
 .cr-aname {
   font-size: 40px; font-weight: 900; font-style: italic; line-height: 1.15; white-space: nowrap;
   text-shadow: 3px 3px 0 var(--navy), -3px 3px 0 var(--navy), 3px -3px 0 var(--navy), -3px -3px 0 var(--navy), 0 6px 0 var(--navy);
@@ -65,7 +64,10 @@
   text-align: center; border-top: 4px solid var(--rc); background: var(--card); transition: box-shadow .2s;
 }
 .cr-wait .cr-bind { border-top-color: rgba(255,255,255,.12); }
-.cr-bind p { margin: 12px 0 0; font-size: 20px; font-weight: 800; line-height: 1.45; white-space: pre-line; word-break: break-all; }
+.cr-bind p { margin: 12px 0 0; font-size: 20px; font-weight: 800; line-height: 1.45; }
+/* 縛り文：区切りごとに行を分け、その中は文節の切れ目で折り返す */
+.cr-bindtext span { display: block; word-break: auto-phrase; overflow-wrap: anywhere; text-wrap: balance; }
+.cr-bindtext span + span { margin-top: 2px; }
 .cr-bind-rolling { box-shadow: inset 0 0 60px -12px var(--rc); }
 .cr-rolling { opacity: .55; filter: blur(.5px); }
 .cr-bind-flash { position: absolute; inset: 0; background: var(--rc); pointer-events: none; mix-blend-mode: screen; }
@@ -104,7 +106,7 @@
   letter-spacing: .12em; background: linear-gradient(transparent, rgba(20,19,32,.9)); font-family: "Bahnschrift", sans-serif;
 }
 .cr-map-hit { filter: none; transform: scale(1.05); border-color: #ffd83b; z-index: 1; }
-.cr-maps-done .cr-map { opacity: .35; }
+.cr-maps-done .cr-map { opacity: .5; }
 .cr-maps-done .cr-map-win { opacity: 1; }
 .cr-map-win {
   filter: drop-shadow(0 0 18px #ffd83b); transform: scale(1.1); border-color: #ffd83b; z-index: 2; overflow: visible;
@@ -131,13 +133,24 @@
 .cr-mine-txt { padding: 10px 12px 12px; flex: 1; min-width: 0; border-left: 3px solid var(--rc); }
 .cr-mine-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .cr-mine-ag { font-size: 22px; font-weight: 900; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cr-mine p { margin: 6px 0 0; font-size: 17px; font-weight: 700; line-height: 1.4; white-space: pre-line; word-break: break-all; }
+.cr-mine p { margin: 6px 0 0; font-size: 17px; font-weight: 700; line-height: 1.4; }
+.cr-mine .cr-bindtext span { text-wrap: pretty; }
+/* 試合開始の瞬間：左から光りながら出てくる */
+.cr-mine-appear { animation: cr-mine-in .7s cubic-bezier(.2,1.2,.4,1) .35s backwards, cr-mine-glow 1.6s ease-out .35s; }
+@keyframes cr-mine-in { from { opacity: 0; transform: translateX(-80px) scale(.92); } }
+@keyframes cr-mine-glow { 0% { box-shadow: 0 0 0 3px var(--navy), 0 0 40px 10px var(--rc); } 100% { box-shadow: 0 0 0 3px var(--navy), 0 6px 0 3px var(--navy); } }
+.cr-mine-appear-flash { position: absolute; inset: 0; background: #fff; pointer-events: none; z-index: 2; animation: cr-flash-out .6s ease-out .45s backwards forwards; opacity: 0; }
+@keyframes cr-flash-out { from { opacity: .9; } to { opacity: 0; } }
+/* 結果画面を閉じるときにふっと消える */
+.cr-leave { animation: cr-leave .4s ease-in forwards; }
+@keyframes cr-leave { to { opacity: 0; transform: translateY(-20px); } }
 
 /* マップ選びの途中（PICK/BANの印をそのまま映す） */
 .cr-board { transition: filter .25s, opacity .25s, transform .25s; }
 .cr-map-in { filter: none; }
 .cr-map-out { filter: grayscale(1) brightness(.45); opacity: .6; }
 .cr-map-picked { border-color: #FF4655; transform: scale(1.04); }
+.cr-map-cand { filter: none; }
 .cr-map-mark {
   position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%) rotate(-8deg);
   font-family: "Bahnschrift", sans-serif; font-weight: 900; font-style: italic; font-size: 30px; letter-spacing: .08em;

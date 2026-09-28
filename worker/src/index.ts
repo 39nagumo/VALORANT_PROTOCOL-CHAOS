@@ -252,6 +252,10 @@ export class Room extends DurableObject<Env> {
       case 'closeDisplay':
         s.display = null;
         break;
+      case 'showMapSetup':
+        if (s.display?.kind === 'mapSetup') return;
+        this.showMapSetup(by);
+        break;
       case 'mapClearHistory':
         s.mapHistory = [];
         this.showMapSetup(by);
