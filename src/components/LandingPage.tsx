@@ -49,6 +49,11 @@ export function LandingPage() {
           ルーム＝みんなで同じ結果を見る・OBSで配信に映す　／　ひとりで回す＝今までどおり画像で共有
         </p>
         {failed && <p className="text-[#FF4655] text-sm mt-3">ルームを作れませんでした。時間をおいてもう一度お試しください。</p>}
+        <div className="mt-8 mx-auto max-w-xl bg-[#ffd83b]/10 border border-[#ffd83b]/40 px-5 py-3 text-sm text-left leading-relaxed [word-break:auto-phrase]">
+          <b className="text-[#ffd83b]">操作するのは代表の1人だけでOK。</b>
+          ほかの人は招待リンクを開いて「参加」を押し、OBSにURLを入れるだけです（配信しない人は参加だけ）。
+          誰が押しても全員の画面が変わるので、同時に操作しないようにしましょう。
+        </div>
       </section>
 
       <section>

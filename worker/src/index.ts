@@ -364,10 +364,13 @@ export class UserHub extends DurableObject<Env> {
   }
 }
 
+// 本番URLに加えて、Vercelのプレビュー用URL（valorant-protocol-chaos-….vercel.app）も許可する
+const PREVIEW_ORIGIN = /^https:\/\/valorant-protocol-chaos-[a-z0-9-]+\.vercel\.app$/;
+
 function cors(request: Request, env: Env): Record<string, string> {
   const origin = request.headers.get('Origin') ?? '';
   const allowed = env.ALLOWED_ORIGINS.split(',').map(s => s.trim());
-  return allowed.includes(origin) ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' } : {};
+  return allowed.includes(origin) || PREVIEW_ORIGIN.test(origin) ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' } : {};
 }
 
 export default {

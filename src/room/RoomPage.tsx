@@ -108,7 +108,11 @@ function JoinForm({ onJoin, onAdopt, error }: {
   return (
     <div className="max-w-md mx-auto mt-10 bg-[#172129]/90 border border-white/10 p-8">
       <h2 className="text-xl font-black mb-2">ルームに参加</h2>
-      <p className="text-sm text-gray-400 mb-6 leading-relaxed">名簿に載せる名前を入れてください。次回からは自動で入ります。</p>
+      <p className="text-sm text-gray-400 mb-2 leading-relaxed">名簿に載せる名前を入れてください。次回からは自動で入ります。</p>
+      <p className="text-sm text-gray-400 mb-6 leading-relaxed">
+        参加すると、自分専用の「OBS用URL」が使えるようになります。配信しない人も、参加だけしておけばOKです。
+        <b className="text-white">振り分けや抽選の操作は代表の1人がやるので、ほかの人は見ているだけで大丈夫です。</b>
+      </p>
       <form onSubmit={submit} className="flex gap-2">
         <input value={name} maxLength={NAME_MAX} onChange={e => setName(e.target.value)} placeholder="名前"
           className="flex-1 bg-[#0F1923] border border-gray-600 text-white px-4 py-3 font-bold outline-none focus:border-[#FF4655]" />
@@ -209,6 +213,8 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
                 <li>ゲーム画面より上、V体より下に置いて、画面全体に広げます。</li>
                 <li>次回からは、新しいルームで「参加」を押すだけでOBSも切り替わります。</li>
               </ol>
+              <p className="mt-2 text-gray-400">ブラウザソースの「表示されていないときにソースをシャットダウン」はオフにしておくと、シーンを切り替えても表示が途切れません。</p>
+              <p className="mt-2 text-gray-400">ルームは最後の操作から3日たつと自動で消えます。次の開催では新しいルームを作ってください。</p>
               <p className="mt-2 text-gray-500">カードの位置は URL の末尾に <code>?x=24&amp;y=478&amp;s=1</code>（横・縦・大きさ）で調整できます。</p>
             </div>
           </details>
@@ -251,7 +257,7 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
 
       <div className="flex flex-wrap items-center gap-4 mt-4">
         <button className={btnGhost} onClick={() => {
-          if (confirm('新しい試合を始めますか？\n全員の抽選結果とOBSの表示が消えます（チーム分けは残ります）。')) act({ type: 'newMatch' });
+          if (confirm('新しい試合を始めますか？\n全員の抽選結果・OBSの表示・マップのPICK/BANが消えます。\n（チーム分けと、一度出たマップの「済」は残ります）')) act({ type: 'newMatch' });
         }}>新しい試合（結果をリセット）</button>
         <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
           <input type="checkbox" checked={showReveal} onChange={ev => {
@@ -323,14 +329,15 @@ function Guide({ step, state, locked, act }: { step: StepKey; state: RoomState; 
     case 'playing':
       text = <>試合中です。終わったら「新しい試合」で次へ（チーム分けは残ります）。</>;
       action = <button className={btnGhost} onClick={() => {
-        if (confirm('新しい試合を始めますか？\n全員の抽選結果とOBSの表示が消えます（チーム分けは残ります）。')) act({ type: 'newMatch' });
+        if (confirm('新しい試合を始めますか？\n全員の抽選結果・OBSの表示・マップのPICK/BANが消えます。\n（チーム分けと、一度出たマップの「済」は残ります）')) act({ type: 'newMatch' });
       }}>新しい試合</button>;
       break;
   }
 
   return (
     <div className="mb-3 bg-[#172129]/90 border border-[#ffd83b]/40 px-4 py-3">
-      <ol className="flex flex-wrap items-center gap-2 mb-2">
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+      <ol className="flex flex-wrap items-center gap-2">
         {STEPS.map((s, i) => (
           <li key={s.key} className="flex items-center gap-2">
             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border ${
@@ -343,6 +350,10 @@ function Guide({ step, state, locked, act }: { step: StepKey; state: RoomState; 
           </li>
         ))}
       </ol>
+        <span className="text-xs text-gray-400">
+          <b className="text-[#ffd83b]">操作は代表の1人でOK</b>（誰が押しても全員の画面とOBSが変わります）
+        </span>
+      </div>
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-[#ffd83b] font-black text-sm">▶ 次にやること</span>
         <span className="text-sm leading-relaxed flex-1 min-w-[280px]">{text}</span>
