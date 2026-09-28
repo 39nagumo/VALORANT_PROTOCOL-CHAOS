@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type Re
 import type { Agent, Bind } from '../logic/gacha';
 import { agentsOfRole, bindsOfRarity } from '../logic/reroll';
 import { MAPS, mapImage } from '../data/maps';
-import { RoomEvent, Side, TeamRoll, TeamSlot, TEAM_INTRO_MS, TEAM_STEP_MS, MAP_SPIN_MS } from '../logic/room';
+import { RoomEvent, Side, TeamRoll, TeamSlot, TEAM_INTRO_MS, TEAM_STEP_MS, MAP_SPIN_MS, type MapMode } from '../logic/room';
 import './room.css';
 
 // 1人ぶんの演出の中の区切り（TEAM_STEP_MS の中で）
@@ -36,6 +36,22 @@ function rollingBind(rarity: Bind['rarity'], seed: string, tick: number): string
   return pool[Math.floor(rand(seed, tick) * pool.length)]?.text ?? '';
 }
 
+/** 回っている間の表示を切り替える目安。押してから始まるまで（マイナスの時間）も止めずに回す */
+const spinTick = (t: number, every: number) => Math.floor((t + 100000) / every);
+
+/** 長い縛り文は、カードからはみ出ないよう文字を小さくする */
+export function bindFontSize(text: string, base = 20): number {
+  const len = text.replace(/\n/g, '').length;
+  const lines = text.split('\n').length;
+  if (len > 70 || lines > 5) return base - 6;
+  if (len > 52 || lines > 4) return base - 4;
+  if (len > 36) return base - 2;
+  return base;
+}
+
+/** 長い名前は文字を小さくして、なるべく全部見えるようにする */
+const nameFontSize = (name: string) => (name.length > 11 ? 14 : name.length > 8 ? 16 : 20);
+
 /** 振り直しの演出中の情報（対象・経過時間） */
 export interface RerollAnim { target: 'agent' | 'bind'; t: number; seed: string }
 
@@ -64,7 +80,7 @@ export function RarityBadge({ rarity, size = 'md' }: { rarity: Bind['rarity']; s
 }
 
 /** 左上の見出し：ロゴ＋何の抽選か＋回した人 */
-function Header({ label, tone, by, t }: { label: string; tone: 'ATK' | 'DEF' | 'MAP'; by: string; t: number }) {
+function Header({ label, tone, by, t, byLabel = '抽選' }: { label: string; tone: 'ATK' | 'DEF' | 'MAP'; by: string; t: number; byLabel?: string }) {
   const logoIn = Math.max(0, Math.min(1, t / 250));
   const tagIn = Math.max(0, Math.min(1, (t - 120) / 220));
   return (
@@ -74,7 +90,7 @@ function Header({ label, tone, by, t }: { label: string; tone: 'ATK' | 'DEF' | '
       </div>
       <div className="cr-head-right" style={{ opacity: tagIn, transform: `translateX(${(1 - tagIn) * -30}px)` }}>
         <div className={`cr-tag cr-tag-${tone}`}>{label}</div>
-        <div className="cr-by">抽選：<b>{by}</b></div>
+        <div className="cr-by">{byLabel}：<b>{by}</b></div>
       </div>
     </div>
   );
@@ -116,7 +132,7 @@ function RevealCard({ slot, seed, local, reroll, mine }: {
     return (
       <div className="cr-slot" style={{ ...style, opacity: 0.35 + enter * 0.4, transform: `translateY(${(1 - enter) * 30}px)` }}>
         <div className="cr-card cr-wait">
-          <div className="cr-art cr-art-q"><span>?</span><div className="cr-pname">{slot.name}</div></div>
+          <div className="cr-art cr-art-q"><span>?</span><div className="cr-pname" style={{ fontSize: nameFontSize(slot.name) }}>{slot.name}</div></div>
           <div className="cr-bind" />
         </div>
       </div>
@@ -129,10 +145,10 @@ function RevealCard({ slot, seed, local, reroll, mine }: {
   const bindSpin = re ? re.target === 'bind' && re.t < REROLL_STOP : local < BIND_STOP;
   const faceSince = re ? (re.target === 'agent' ? re.t - REROLL_STOP : Infinity) : local - FACE_STOP;
   const bindSince = re ? (re.target === 'bind' ? re.t - REROLL_STOP : Infinity) : local - BIND_STOP;
-  const spinT = Math.max(0, re ? re.t : local);
+  const spinT = re ? re.t : local;
   const spinSeed = re ? re.seed : seed;
 
-  const face = faceSpin ? pool[Math.floor(rand(spinSeed, Math.floor(spinT / 60)) * pool.length)] : slot.agent;
+  const face = faceSpin ? pool[Math.floor(rand(spinSeed, spinTick(spinT, 60)) * pool.length)] : slot.agent;
   const faceFlash = !faceSpin ? Math.max(0, 1 - faceSince / 250) : 0;
   const pop = !faceSpin && faceSince < 220 ? 1 + 0.05 * Math.sin((faceSince / 220) * Math.PI) : 1;
   const bindFlash = !bindSpin ? Math.max(0, 1 - bindSince / 350) : 0;
@@ -146,7 +162,7 @@ function RevealCard({ slot, seed, local, reroll, mine }: {
         <div className="cr-art">
           <img src={face.image} alt="" className={faceSpin ? 'cr-blur' : ''} />
           <div className="cr-art-fade" />
-          <div className="cr-pname">{slot.name}</div>
+          <div className="cr-pname" style={{ fontSize: nameFontSize(slot.name) }}>{slot.name}</div>
           <div className="cr-agent">
             <span className={`cr-role cr-role-${slot.agent.role}`}>{ROLE_LABEL[slot.agent.role]}</span>
             <span className="cr-aname">{faceSpin ? '？？？' : slot.agent.name}</span>
@@ -155,9 +171,10 @@ function RevealCard({ slot, seed, local, reroll, mine }: {
         </div>
         <div className={`cr-bind ${badgeOn && bindSpin ? 'cr-bind-rolling' : ''}`}>
           {badgeOn && <RarityBadge rarity={slot.bind.rarity} />}
-          <p className={bindSpin ? 'cr-rolling' : ''}>
-            {!bindSpin ? slot.bind.text : badgeOn ? rollingBind(slot.bind.rarity, spinSeed, Math.floor(spinT / 90)) : ''}
-          </p>
+          {(() => {
+            const text = !bindSpin ? slot.bind.text : badgeOn ? rollingBind(slot.bind.rarity, spinSeed, spinTick(spinT, 90)) : '';
+            return <p className={bindSpin ? 'cr-rolling' : ''} style={{ fontSize: bindFontSize(text) }}>{text}</p>;
+          })()}
           {bindFlash > 0 && <div className="cr-bind-flash" style={{ opacity: bindFlash }} />}
         </div>
       </div>
@@ -214,6 +231,30 @@ export function MapReveal({ event, t }: { event: Extract<RoomEvent, { kind: 'map
   );
 }
 
+/** マップのPICK/BANを話し合っている途中の画面。誰かが押すたびに全員のOBSで印が変わる */
+export function MapBoard({ mode, marks, history, by }: { mode: MapMode; marks: string[]; history: string[]; by: string }) {
+  return (
+    <div className="cr-reveal cr-side-MAP">
+      <Header label={`MAP ${mode}`} tone="MAP" by={by} t={1000} byLabel="操作" />
+      <div className="cr-maps">
+        {MAPS.map(m => {
+          const marked = marks.includes(m.id);
+          const used = history.includes(m.id);
+          const out = used || (mode === 'PICK' ? !marked : marked);
+          return (
+            <div key={m.id} className={`cr-map cr-board ${out ? 'cr-map-out' : 'cr-map-in'} ${mode === 'PICK' && marked ? 'cr-map-picked' : ''}`}>
+              <img src={mapImage(m)} alt="" />
+              <span>{m.name}</span>
+              {used ? <div className="cr-map-mark cr-mark-used">済</div>
+                : marked && <div className={`cr-map-mark cr-mark-${mode}`}>{mode}</div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- 試合中に出し続けるカード
 
 export function MyCard({ slot, side, reroll }: {
@@ -224,13 +265,13 @@ export function MyCard({ slot, side, reroll }: {
 }) {
   const pool = useMemo(() => agentsOfRole(slot.agent.role), [slot.agent.role]);
   const spinning = reroll && reroll.t < REROLL_STOP;
-  const tick = reroll ? Math.floor(Math.max(0, reroll.t) / 60) : 0;
+  const tick = reroll ? spinTick(reroll.t, 60) : 0;
   const face = spinning && reroll.target === 'agent' ? pool[Math.floor(rand(reroll.seed, tick) * pool.length)] : slot.agent;
-  const text = spinning && reroll.target === 'bind' ? rollingBind(slot.bind.rarity, reroll.seed, Math.floor(reroll.t / 90)) : slot.bind.text;
+  const text = spinning && reroll.target === 'bind' ? rollingBind(slot.bind.rarity, reroll.seed, spinTick(reroll.t, 90)) : slot.bind.text;
   const flash = reroll && !spinning ? Math.max(0, 1 - (reroll.t - REROLL_STOP) / 250) : 0;
 
   return (
-    // 攻守は後半で入れ替わるので文字では出さず、左の色だけで最初の陣営を示す
+    // 攻守は後半で入れ替わるので出さない。色はレア度だけ
     <div className={`cr-mine cr-mine-${side}`} style={{ '--rc': RARITY_COLOR[slot.bind.rarity] } as CSSProperties}>
       <div className="cr-mine-face">
         <img src={face.image} alt="" className={spinning && reroll.target === 'agent' ? 'cr-blur' : ''} />
@@ -240,7 +281,7 @@ export function MyCard({ slot, side, reroll }: {
           <span className="cr-mine-ag">{spinning && reroll.target === 'agent' ? '？？？' : slot.agent.name}</span>
           <RarityBadge rarity={slot.bind.rarity} size="sm" />
         </div>
-        <p className={spinning && reroll.target === 'bind' ? 'cr-rolling' : ''}>{text}</p>
+        <p className={spinning && reroll.target === 'bind' ? 'cr-rolling' : ''} style={{ fontSize: Math.max(15, bindFontSize(text, 17)) }}>{text}</p>
       </div>
       {flash > 0 && <div className="cr-flash-white" style={{ opacity: flash * 0.8 }} />}
     </div>

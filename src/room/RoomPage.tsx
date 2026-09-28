@@ -216,8 +216,9 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
 
       <Guide step={step} state={state} locked={locked} act={act} />
 
+      {/* 抽選中のお知らせは、ロゴ横の空いている所に重ねて出す（下の表示がずれないように） */}
       {locked && e && (
-        <div className="mb-3 px-4 py-2 bg-[#FF4655]/15 border border-[#FF4655]/40 text-sm font-bold animate-pulse">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[150] px-5 py-2 rounded-full bg-[#FF4655] text-white text-sm font-black shadow-[0_6px_20px_rgba(0,0,0,.5)] animate-pulse whitespace-nowrap">
           {e.by}さんが{e.kind === 'map' ? 'マップ' : e.kind === 'team' ? SIDE_LABEL[e.side] : '振り直し'}を抽選中…
         </div>
       )}
@@ -291,7 +292,7 @@ function Guide({ step, state, locked, act }: { step: StepKey; state: RoomState; 
       action = <button className={`${btnBlue} text-base px-6`} disabled={locked} onClick={() => act({ type: 'roll', side: 'DEF' })}>DEFENDERを回す</button>;
       break;
     case 'map':
-      text = <>DEFENDERも確認して、OKなら <b className="text-[#ffd83b]">マップ</b> を回しましょう（右の一覧で PICK / BAN できます）。</>;
+      text = <>DEFENDERも確認して、OKなら <b className="text-[#ffd83b]">マップ</b> を回しましょう（右の一覧で PICK / BAN すると、その様子もOBSに映ります）。</>;
       action = <button className={`${btnYellow} text-base px-6`} disabled={locked || pool === 0} onClick={() => act({ type: 'mapRoll' })}>マップを回す（{pool}）</button>;
       break;
     case 'start':

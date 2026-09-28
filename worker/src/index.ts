@@ -227,11 +227,13 @@ export class Room extends DurableObject<Env> {
       case 'mapMode':
         if (msg.mode !== 'PICK' && msg.mode !== 'BAN') return;
         if (s.mapMode !== msg.mode) { s.mapMode = msg.mode; s.mapMarks = []; }
+        this.showMapSetup(by);
         break;
       case 'mapMark': {
         if (!MAPS.some(m => m.id === msg.mapId)) return;
         const marks = s.mapMarks ?? [];
         s.mapMarks = marks.includes(msg.mapId) ? marks.filter(id => id !== msg.mapId) : [...marks, msg.mapId];
+        this.showMapSetup(by);
         break;
       }
       case 'mapRoll': {
@@ -252,6 +254,7 @@ export class Room extends DurableObject<Env> {
         break;
       case 'mapClearHistory':
         s.mapHistory = [];
+        this.showMapSetup(by);
         break;
       case 'newMatch':
         s.teams = { ATK: null, DEF: null };
@@ -265,6 +268,13 @@ export class Room extends DurableObject<Env> {
         return;
     }
     this.save();
+  }
+
+  /** マップのPICK/BANを触ったら、OBSをマップ選びの画面にして印の状態を全員に見せる（演出中は割り込まない） */
+  private showMapSetup(by: string) {
+    const s = this.state!;
+    if (Date.now() < s.lockUntil || s.display?.kind === 'mapSetup') return;
+    s.display = { kind: 'mapSetup', id: crypto.randomUUID(), startedAt: Date.now(), by };
   }
 
   private startEvent(e: RoomEvent) {

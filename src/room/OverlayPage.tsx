@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { UID_PATTERN, eventDuration, type Side, type TeamSlot } from '../logic/room';
 import { useCurrentRoomOf, useRoom, useServerNow } from './connection';
-import { MapReveal, MyCard, Stage, TeamReveal } from './reveal';
+import { MapBoard, MapReveal, MyCard, Stage, TeamReveal } from './reveal';
 
 /**
  * OBSのブラウザソース用（/me/:uid）。背景は透明。
@@ -61,6 +61,9 @@ export function OverlayPage() {
             reroll={rerollAnim?.side === display.side ? rerollAnim : null} meId={memberId} />
         )}
         {part !== 'card' && display?.kind === 'map' && <MapReveal event={display} t={dT} />}
+        {part !== 'card' && display?.kind === 'mapSetup' && state && (
+          <MapBoard mode={state.mapMode ?? 'BAN'} marks={state.mapMarks ?? []} history={state.mapHistory ?? []} by={display.by} />
+        )}
         {hint && (
           <div style={{ position: 'absolute', left: 24, top: 24, padding: '6px 14px', background: 'rgba(15,25,35,.85)', color: '#ECE8E1', fontSize: 18, borderLeft: '4px solid #FF4655' }}>
             CHAOS GACHA：{!valid ? 'URLが正しくありません' : !known ? '接続中…' : !roomId ? 'まだルームに参加していません' : memberId ? '接続しました' : 'ルームに接続中…'}

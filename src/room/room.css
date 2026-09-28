@@ -11,7 +11,7 @@
 .cr-reveal { position: absolute; inset: 0; }
 
 /* 見出し：ロゴ＋タグ（背景は透過なので、どれも白フチ＋紺の縁で読めるようにする） */
-.cr-head { position: absolute; left: 44px; top: 18px; display: flex; align-items: center; gap: 8px; }
+.cr-head { position: absolute; left: 44px; top: 66px; display: flex; align-items: center; gap: 8px; }
 .cr-logo { width: 420px; height: 184px; overflow: hidden; transform-origin: 30% 60%; }
 .cr-logo img { display: block; width: 420px; margin-top: -36px; filter: drop-shadow(0 6px 0 rgba(20,19,32,.55)); }
 .cr-head-right { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 18px; }
@@ -31,13 +31,13 @@
 .cr-by b { color: #fff; }
 
 /* カード */
-.cr-cards { position: absolute; left: 64px; top: 262px; display: flex; gap: 26px; }
+.cr-cards { position: absolute; left: 64px; top: 300px; display: flex; gap: 26px; }
 .cr-slot { width: 256px; border-radius: 22px; position: relative; }
 .cr-card {
   position: relative; border-radius: 22px; overflow: hidden; background: var(--card);
   border: 5px solid #fff; box-shadow: 0 0 0 5px var(--navy), 0 12px 0 5px var(--navy);
 }
-.cr-art { position: relative; height: 380px; background: #0e0d18; overflow: hidden; }
+.cr-art { position: relative; height: 350px; background: #0e0d18; overflow: hidden; }
 .cr-art img { width: 100%; height: 100%; object-fit: cover; object-position: center 12%; display: block; }
 .cr-art-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 55%; background: linear-gradient(transparent, rgba(29,28,48,.25) 30%, var(--card) 96%); }
 .cr-blur { filter: blur(5px) brightness(.85) saturate(1.2); transform: scale(1.1); }
@@ -61,11 +61,11 @@
 .cr-art-q span { font-size: 150px; font-weight: 900; color: rgba(255,255,255,.14); }
 
 .cr-bind {
-  position: relative; height: 216px; padding: 16px 14px; display: flex; flex-direction: column; align-items: center;
+  position: relative; height: 226px; overflow: hidden; padding: 16px 14px; display: flex; flex-direction: column; align-items: center;
   text-align: center; border-top: 4px solid var(--rc); background: var(--card); transition: box-shadow .2s;
 }
 .cr-wait .cr-bind { border-top-color: rgba(255,255,255,.12); }
-.cr-bind p { margin: 14px 0 0; font-size: 20px; font-weight: 800; line-height: 1.5; white-space: pre-line; }
+.cr-bind p { margin: 12px 0 0; font-size: 20px; font-weight: 800; line-height: 1.45; white-space: pre-line; word-break: break-all; }
 .cr-bind-rolling { box-shadow: inset 0 0 60px -12px var(--rc); }
 .cr-rolling { opacity: .55; filter: blur(.5px); }
 .cr-bind-flash { position: absolute; inset: 0; background: var(--rc); pointer-events: none; mix-blend-mode: screen; }
@@ -74,8 +74,8 @@
 /* 見ている本人のカードだけ、レア度の色でふわっと光り続ける */
 .cr-glow { animation: cr-glow 1.8s ease-in-out infinite; }
 @keyframes cr-glow {
-  0%, 100% { filter: drop-shadow(0 0 6px var(--rc)) drop-shadow(0 0 2px var(--rc)); }
-  50% { filter: drop-shadow(0 0 28px var(--rc)) drop-shadow(0 0 8px var(--rc)); }
+  0%, 100% { filter: drop-shadow(0 0 3px var(--rc)); }
+  50% { filter: drop-shadow(0 0 13px var(--rc)); }
 }
 
 /* レア度 */
@@ -92,7 +92,7 @@
 .cr-r-Extra { background: #facc15; }
 
 /* マップ */
-.cr-maps { position: absolute; left: 64px; top: 262px; width: 1440px; display: flex; flex-wrap: wrap; gap: 26px 24px; }
+.cr-maps { position: absolute; left: 64px; top: 300px; width: 1440px; display: flex; flex-wrap: wrap; gap: 26px 24px; }
 .cr-map {
   width: 264px; aspect-ratio: 16 / 9; position: relative; overflow: hidden; border-radius: 16px;
   border: 4px solid #fff; box-shadow: 0 0 0 4px var(--navy), 0 8px 0 4px var(--navy);
@@ -126,11 +126,23 @@
   position: relative; width: 372px; display: flex; overflow: hidden; border-radius: 14px;
   background: rgba(29,28,48,.94); border: 3px solid rgba(255,255,255,.9); box-shadow: 0 0 0 3px var(--navy), 0 6px 0 3px var(--navy);
 }
-.cr-mine::before { content: ""; width: 8px; flex: none; background: #FF4655; }
-.cr-mine-DEF::before { background: #2fb3ea; }
 .cr-mine-face { width: 100px; flex: none; overflow: hidden; background: #0e0d18; }
 .cr-mine-face img { width: 100%; height: 100%; object-fit: cover; object-position: center 12%; display: block; }
 .cr-mine-txt { padding: 10px 12px 12px; flex: 1; min-width: 0; border-left: 3px solid var(--rc); }
 .cr-mine-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .cr-mine-ag { font-size: 22px; font-weight: 900; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cr-mine p { margin: 6px 0 0; font-size: 17px; font-weight: 700; line-height: 1.4; white-space: pre-line; }
+.cr-mine p { margin: 6px 0 0; font-size: 17px; font-weight: 700; line-height: 1.4; white-space: pre-line; word-break: break-all; }
+
+/* マップ選びの途中（PICK/BANの印をそのまま映す） */
+.cr-board { transition: filter .25s, opacity .25s, transform .25s; }
+.cr-map-in { filter: none; }
+.cr-map-out { filter: grayscale(1) brightness(.45); opacity: .6; }
+.cr-map-picked { border-color: #FF4655; transform: scale(1.04); }
+.cr-map-mark {
+  position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%) rotate(-8deg);
+  font-family: "Bahnschrift", sans-serif; font-weight: 900; font-style: italic; font-size: 30px; letter-spacing: .08em;
+  padding: 2px 18px; border-radius: 10px; border: 4px solid #fff; box-shadow: 0 0 0 4px var(--navy), 0 6px 0 4px var(--navy);
+}
+.cr-mark-PICK { background: #FF4655; color: #fff; }
+.cr-mark-BAN { background: #5b5a70; color: #fff; }
+.cr-mark-used { background: #2b2a3f; color: rgba(255,255,255,.8); font-size: 24px; }

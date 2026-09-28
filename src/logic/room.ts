@@ -32,6 +32,10 @@ export type RoomEvent =
   | { kind: 'reroll'; id: string; side: Side; index: number; target: 'agent' | 'bind'; startedAt: number; by: string }
   | { kind: 'map'; id: string; mapId: string; pool: string[]; startedAt: number; by: string };
 
+/** マップのPICK/BANを話し合っている途中の画面（印の状態をそのまま映す） */
+export interface MapSetupDisplay { kind: 'mapSetup'; id: string; startedAt: number; by: string }
+export type RoomDisplay = Extract<RoomEvent, { kind: 'team' | 'map' }> | MapSetupDisplay;
+
 export interface RoomState {
   members: Member[];
   teams: { ATK: TeamRoll | null; DEF: TeamRoll | null };
@@ -41,8 +45,8 @@ export interface RoomState {
   mapMarks: string[];
   mapHistory: string[];
   event: RoomEvent | null;
-  /** OBSに出し続けている抽選結果の画面（誰かが閉じるまで残る） */
-  display: Extract<RoomEvent, { kind: 'team' | 'map' }> | null;
+  /** OBSに出し続けている画面（抽選結果か、マップ選びの途中）。誰かが閉じるまで残る */
+  display: RoomDisplay | null;
   lockUntil: number;
 }
 
