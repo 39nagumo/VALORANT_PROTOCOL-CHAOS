@@ -149,7 +149,9 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
 
   const e = state.event;
   const active = e && e.id !== room.skipEventId && now < e.startedAt + eventDuration(e) ? e : null;
+  // この画面では演出の間だけ大きく見せる（OBSは閉じるまで出し続ける）
   const modal = showReveal && active && active.kind !== 'reroll' && closedEvent !== active.id ? active : null;
+  const display = state.display ?? null;
 
   return (
     <div className="max-w-[1400px] mx-auto w-full">
@@ -190,6 +192,16 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
       {locked && e && (
         <div className="mb-4 px-4 py-2 bg-[#FF4655]/15 border border-[#FF4655]/40 text-sm font-bold animate-pulse">
           {e.by}さんが{e.kind === 'map' ? 'マップ' : e.kind === 'team' ? SIDE_LABEL[e.side] : '振り直し'}を抽選中…（終わるまで回せません）
+        </div>
+      )}
+
+      {display && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 px-4 py-3 bg-[#46CBFF]/10 border border-[#46CBFF]/40">
+          <span className="text-sm font-bold">
+            OBSに{display.kind === 'map' ? 'マップ' : SIDE_LABEL[display.side]}の抽選結果を表示中です。振り直しもこのままできます。
+          </span>
+          <button className={`${btn} ml-auto bg-[#46CBFF] border-[#46CBFF] text-[#0F1923] hover:bg-[#2fb5ea]`}
+            onClick={() => act({ type: 'closeDisplay' })}>OBSの結果画面を閉じる</button>
         </div>
       )}
 

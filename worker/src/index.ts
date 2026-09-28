@@ -45,6 +45,7 @@ const emptyState = (): RoomState => ({
   mapBans: [],
   mapHistory: [],
   event: null,
+  display: null,
   lockUntil: 0,
 });
 
@@ -237,6 +238,9 @@ export class Room extends DurableObject<Env> {
         this.startEvent({ kind: 'map', id: crypto.randomUUID(), mapId, pool, startedAt: now + EVENT_LEAD_MS, by });
         break;
       }
+      case 'closeDisplay':
+        s.display = null;
+        break;
       case 'mapClearHistory':
         s.mapHistory = [];
         break;
@@ -244,6 +248,7 @@ export class Room extends DurableObject<Env> {
         s.teams = { ATK: null, DEF: null };
         s.map = null;
         s.event = null;
+        s.display = null;
         s.lockUntil = 0;
         break;
       case 'regenerate':
@@ -254,7 +259,16 @@ export class Room extends DurableObject<Env> {
   }
 
   private startEvent(e: RoomEvent) {
-    this.state!.event = e;
+    const s = this.state!;
+    s.event = e;
+    if (e.kind !== 'reroll') s.display = e;
+    // 振り直しは、結果画面が出ていればその画面の中で見せる
+    else if (s.display) {
+      if (s.display.kind !== 'team' || s.display.side !== e.side) {
+        // 別の画面が出ていたら、そのチームの結果画面（演出なし）に切り替える
+        s.display = { kind: 'team', id: crypto.randomUUID(), side: e.side, startedAt: 0, by: e.by };
+      }
+    }
     this.state!.lockUntil = e.startedAt + eventDuration(e);
   }
 

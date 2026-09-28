@@ -39,7 +39,7 @@
   display: flex; flex-direction: column; align-items: center; padding: 16px 10px; text-align: center; transition: box-shadow .2s, border-color .2s;
 }
 .cr-bind p { margin: 16px 0 0; font-size: 21px; font-weight: 700; line-height: 1.55; white-space: pre-line; }
-.cr-scramble { color: rgba(255,255,255,.4); letter-spacing: .08em; }
+.cr-rolling { color: rgba(255,255,255,.45); filter: blur(.6px); }
 .cr-wait { opacity: .5; }
 .cr-spin { border-color: rgba(var(--accent-rgb), .6); box-shadow: 0 0 30px rgba(var(--accent-rgb), .35); }
 .cr-fixed { box-shadow: 0 0 0 2px rgba(255,255,255,.15); }
@@ -49,8 +49,8 @@
   position: absolute; top: 372px; left: 50%; transform: translateX(-50%) rotate(-6deg); z-index: 3;
   background: #FF4655; color: #fff; font-size: 34px; font-weight: 900; font-style: italic; padding: 4px 22px;
   letter-spacing: .08em; box-shadow: 0 0 30px rgba(255,70,85,.9); white-space: nowrap; font-family: "Bahnschrift", sans-serif;
-  animation: cr-burst-in .35s cubic-bezier(.2,1.6,.4,1);
 }
+.cr-burst-in { animation: cr-burst-in .3s cubic-bezier(.2,1.6,.4,1); }
 @keyframes cr-burst-in { from { transform: translateX(-50%) rotate(-6deg) scale(2.2); opacity: 0; } }
 .cr-flash-white { position: absolute; inset: 0; background: #fff; pointer-events: none; }
 .cr-flash-red { position: absolute; inset: 0; background: #FF4655; pointer-events: none; mix-blend-mode: screen; }
@@ -93,9 +93,6 @@
 .cr-mine-face { width: 104px; flex: none; overflow: hidden; background: #000; }
 .cr-mine-face img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
 .cr-mine-txt { padding: 10px 12px; flex: 1; min-width: 0; }
-.cr-mine-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px; }
-.cr-mine-who { font-size: 16px; color: rgba(255,255,255,.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cr-mine-side { font-family: "Bahnschrift", sans-serif; font-size: 15px; font-weight: 700; color: #FF4655; letter-spacing: .15em; }
-.cr-mine-DEF .cr-mine-side { color: #46CBFF; }
+.cr-mine-who { font-size: 16px; color: rgba(255,255,255,.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
 .cr-mine-ag { font-size: 22px; font-weight: 900; font-style: italic; margin-bottom: 6px; }
 .cr-mine p { margin: 6px 0 0; font-size: 17px; font-weight: 700; line-height: 1.4; white-space: pre-line; }

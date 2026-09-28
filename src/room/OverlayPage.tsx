@@ -32,9 +32,12 @@ export function OverlayPage() {
   const [hint, setHint] = useState(true);
   useEffect(() => { const t = window.setTimeout(() => setHint(false), 8000); return () => window.clearTimeout(t); }, []);
 
+  // 抽選結果の画面は、誰かが「閉じる」を押すまで出し続ける
+  const display = state?.display ?? null;
+  const dT = display ? (display.id === skipEventId ? Infinity : now - display.startedAt) : 0;
   const e = state?.event;
-  const active = e && e.id !== skipEventId && now < e.startedAt + eventDuration(e) ? e : null;
-  const t = active ? now - active.startedAt : 0;
+  const rerolling = e?.kind === 'reroll' && e.id !== skipEventId && now < e.startedAt + eventDuration(e) ? e : null;
+  const rerollAnim = rerolling ? { index: rerolling.index, side: rerolling.side, target: rerolling.target, t: now - rerolling.startedAt, seed: rerolling.id } : null;
 
   let mine: { slot: TeamSlot; side: Side; index: number } | null = null;
   if (state && memberId) {
@@ -43,23 +46,21 @@ export function OverlayPage() {
       if (index >= 0) mine = { slot: state.teams[side]!.slots[index], side, index };
     }
   }
-  // 自分のチームの演出中は、カードは演出が終わってから出す
-  const hideCard = active?.kind === 'team' && mine && active.side === mine.side;
-  const reroll = active?.kind === 'reroll' && mine && active.side === mine.side && active.index === mine.index
-    ? { target: active.target, t, seed: active.id } : null;
+  const myReroll = rerollAnim && mine && rerollAnim.side === mine.side && rerollAnim.index === mine.index ? rerollAnim : null;
 
   return (
     <div style={{ position: 'fixed', inset: 0 }}>
       <Stage>
-        {part !== 'reveal' && mine && !hideCard && (
+        {part !== 'reveal' && mine && !display && (
           <div style={{ position: 'absolute', left: x, top: y, transform: `scale(${s})`, transformOrigin: '0 0' }}>
-            <MyCard slot={mine.slot} side={mine.side} reroll={reroll} />
+            <MyCard slot={mine.slot} side={mine.side} reroll={myReroll} />
           </div>
         )}
-        {part !== 'card' && active?.kind === 'team' && state?.teams[active.side] && (
-          <TeamReveal roll={state.teams[active.side]!} event={active} t={t} />
+        {part !== 'card' && display?.kind === 'team' && state?.teams[display.side] && (
+          <TeamReveal roll={state.teams[display.side]!} event={display} t={dT}
+            reroll={rerollAnim?.side === display.side ? rerollAnim : null} />
         )}
-        {part !== 'card' && active?.kind === 'map' && <MapReveal event={active} t={t} />}
+        {part !== 'card' && display?.kind === 'map' && <MapReveal event={display} t={dT} />}
         {hint && (
           <div style={{ position: 'absolute', left: 24, top: 24, padding: '6px 14px', background: 'rgba(15,25,35,.85)', color: '#ECE8E1', fontSize: 18, borderLeft: '4px solid #FF4655' }}>
             CHAOS GACHA：{!valid ? 'URLが正しくありません' : !known ? '接続中…' : !roomId ? 'まだルームに参加していません' : memberId ? '接続しました' : 'ルームに接続中…'}

@@ -32,3 +32,8 @@ export function rerollBind(current: Bind, teammates: Bind[]): Bind | null {
 export function agentsOfRole(role: Agent['role']): Agent[] {
   return ALL_AGENTS.filter(a => a.role === role);
 }
+
+/** 演出で文字を回すときに流す縛り（同じレア度のもの） */
+export function bindsOfRarity(rarity: BindRarity): Bind[] {
+  return ALL_BINDS.filter(b => b.rarity === rarity);
+}

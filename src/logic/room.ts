@@ -38,18 +38,18 @@ export interface RoomState {
   mapBans: string[];
   mapHistory: string[];
   event: RoomEvent | null;
+  /** OBSに出し続けている抽選結果の画面（誰かが閉じるまで残る） */
+  display: Extract<RoomEvent, { kind: 'team' | 'map' }> | null;
   lockUntil: number;
 }
 
 // 演出の長さ（ミリ秒）。サーバーはこの間ほかの抽選を受け付けない
-export const TEAM_INTRO_MS = 900;
-export const TEAM_STEP_MS = 1500;
-export const TEAM_HOLD_MS = 3500;
-export const TEAM_OUT_MS = 600;
-export const TEAM_REVEAL_MS = TEAM_INTRO_MS + TEAM_STEP_MS * TEAM_SIZE + TEAM_HOLD_MS + TEAM_OUT_MS;
-export const REROLL_MS = 1600;
-export const MAP_SPIN_MS = 4200;
-export const MAP_REVEAL_MS = MAP_SPIN_MS + 3400 + 600;
+export const TEAM_INTRO_MS = 450;
+export const TEAM_STEP_MS = 750;
+export const TEAM_REVEAL_MS = TEAM_INTRO_MS + TEAM_STEP_MS * TEAM_SIZE + 300;
+export const REROLL_MS = 800;
+export const MAP_SPIN_MS = 2100;
+export const MAP_REVEAL_MS = MAP_SPIN_MS + 700;
 /** 押してから演出が始まるまでの余裕（全員に届くのを待つ） */
 export const EVENT_LEAD_MS = 400;
 
@@ -65,6 +65,7 @@ export type ClientMessage =
   | { type: 'mapBan'; mapId: string }
   | { type: 'mapRoll' }
   | { type: 'mapClearHistory' }
+  | { type: 'closeDisplay' }
   | { type: 'newMatch' }
   | { type: 'regenerate' };
 

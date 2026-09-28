@@ -1,17 +1,19 @@
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Agent, Bind } from '../logic/gacha';
-import { agentsOfRole } from '../logic/reroll';
+import { agentsOfRole, bindsOfRarity } from '../logic/reroll';
 import { MAPS, mapImage } from '../data/maps';
 import {
   RoomEvent, Side, TeamRoll, TeamSlot,
-  TEAM_INTRO_MS, TEAM_STEP_MS, TEAM_REVEAL_MS, TEAM_OUT_MS, TEAM_SIZE,
-  MAP_SPIN_MS, MAP_REVEAL_MS, REROLL_MS,
+  TEAM_INTRO_MS, TEAM_STEP_MS, TEAM_SIZE,
+  MAP_SPIN_MS,
 } from '../logic/room';
 import './room.css';
 
 // 1人ぶんの演出の中の区切り（TEAM_STEP_MS の中で）
-const FACE_STOP = 950;   // 顔のスロットが止まる
-const BIND_STOP = 1250;  // 縛りの文字が確定する
+const FACE_STOP = 475;  // 顔のスロットが止まる
+const BIND_STOP = 625;  // 縛りの文字が確定する
+// 振り直しの演出の中の区切り（REROLL_MS の中で）
+const REROLL_STOP = 550;
 
 export const SIDE_LABEL: Record<Side, string> = { ATK: 'ATTACKER', DEF: 'DEFENDER' };
 export const ROLE_LABEL: Record<Agent['role'], string> = {
@@ -27,10 +29,14 @@ function rand(seed: string, n: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-const SCRAMBLE = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン縛撃弾走跳叫';
-function scramble(text: string, seed: string, tick: number): string {
-  return Array.from(text, (c, i) => (c === '\n' || c === ' ' ? c : SCRAMBLE[Math.floor(rand(seed, tick * 97 + i) * SCRAMBLE.length)])).join('');
+/** 抽選中に流す縛り文（同じレア度の本物の縛りを次々に見せる） */
+function rollingBind(rarity: Bind['rarity'], seed: string, tick: number): string {
+  const pool = bindsOfRarity(rarity);
+  return pool[Math.floor(rand(seed, tick) * pool.length)]?.text ?? '';
 }
+
+/** 振り直しの演出中の情報（対象・経過時間） */
+export interface RerollAnim { target: 'agent' | 'bind'; t: number; seed: string }
 
 /** 1920×1080 の画面を、置き場所の大きさに合わせて縮小して表示する */
 export function Stage({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -58,24 +64,29 @@ export function RarityBadge({ rarity, size = 'md' }: { rarity: Bind['rarity']; s
 
 // ---------------------------------------------------------------- チーム抽選
 
-export function TeamReveal({ roll, event, t }: {
+export function TeamReveal({ roll, event, t, reroll }: {
   roll: TeamRoll;
   event: Extract<RoomEvent, { kind: 'team' }>;
   t: number;
+  /** 結果画面を出したまま振り直したとき、その枠だけ回す */
+  reroll?: ({ index: number } & RerollAnim) | null;
 }) {
-  const out = Math.max(0, Math.min(1, (t - (TEAM_REVEAL_MS - TEAM_OUT_MS)) / TEAM_OUT_MS));
-  const intro = Math.max(0, Math.min(1, t / 600));
+  const intro = Math.max(0, Math.min(1, t / 300));
   const done = Math.max(0, Math.min(TEAM_SIZE, Math.floor((t - TEAM_INTRO_MS - BIND_STOP) / TEAM_STEP_MS) + 1));
 
   // CHAOSが確定した瞬間だけ、画面全体を赤く光らせる
   let chaosFlash = 0;
   roll.slots.forEach((s, i) => {
     const local = t - TEAM_INTRO_MS - i * TEAM_STEP_MS - BIND_STOP;
-    if (s.bind.rarity === 'CHAOS' && local >= 0 && local < 500) chaosFlash = Math.max(chaosFlash, 1 - local / 500);
+    if (s.bind.rarity === 'CHAOS' && local >= 0 && local < 350) chaosFlash = Math.max(chaosFlash, 1 - local / 350);
+    if (reroll?.index === i && reroll.target === 'bind' && s.bind.rarity === 'CHAOS') {
+      const r = reroll.t - REROLL_STOP;
+      if (r >= 0 && r < 350) chaosFlash = Math.max(chaosFlash, 1 - r / 350);
+    }
   });
 
   return (
-    <div className={`cr-reveal cr-side-${roll.side}`} style={{ opacity: 1 - out }}>
+    <div className={`cr-reveal cr-side-${roll.side}`}>
       <div className="cr-bg" />
       <div className="cr-stripes" />
       <h1 className="cr-title" style={{ opacity: intro, transform: `translateX(${(1 - intro) * -80}px) skewX(-8deg)` }}>
@@ -87,7 +98,8 @@ export function TeamReveal({ roll, event, t }: {
       <div className="cr-cards">
         {roll.slots.map((slot, i) => (
           <RevealCard key={slot.memberId} slot={slot} seed={`${event.id}:${i}`}
-            local={t - TEAM_INTRO_MS - i * TEAM_STEP_MS} />
+            local={t - TEAM_INTRO_MS - i * TEAM_STEP_MS}
+            reroll={reroll?.index === i ? reroll : null} />
         ))}
       </div>
 
@@ -100,7 +112,9 @@ export function TeamReveal({ roll, event, t }: {
   );
 }
 
-function RevealCard({ slot, seed, local }: { slot: TeamSlot; seed: string; local: number }) {
+function RevealCard({ slot, seed, local, reroll }: {
+  slot: TeamSlot; seed: string; local: number; reroll: RerollAnim | null;
+}) {
   const pool = useMemo(() => agentsOfRole(slot.agent.role), [slot.agent.role]);
   if (local < 0) {
     return (
@@ -113,30 +127,39 @@ function RevealCard({ slot, seed, local }: { slot: TeamSlot; seed: string; local
       </div>
     );
   }
-  const faceFixed = local >= FACE_STOP;
-  const bindFixed = local >= BIND_STOP;
-  const tick = Math.floor(local / 70);
-  const face = faceFixed ? slot.agent : pool[Math.floor(rand(seed, tick) * pool.length)];
-  const faceFlash = faceFixed ? Math.max(0, 1 - (local - FACE_STOP) / 300) : 0;
-  const pop = faceFixed && local < FACE_STOP + 250 ? 1 + 0.06 * (1 - (local - FACE_STOP) / 250) : 1;
-  const chaos = bindFixed && slot.bind.rarity === 'CHAOS';
-  const badgeOn = local >= 250;
+
+  // 最初の抽選か、振り直し（対象だけもう一度回す）か
+  const re = reroll && local >= BIND_STOP ? reroll : null;
+  const faceSpin = re ? re.target === 'agent' && re.t < REROLL_STOP : local < FACE_STOP;
+  const bindSpin = re ? re.target === 'bind' && re.t < REROLL_STOP : local < BIND_STOP;
+  const faceSince = re ? (re.target === 'agent' ? re.t - REROLL_STOP : Infinity) : local - FACE_STOP;
+  const bindSince = re ? (re.target === 'bind' ? re.t - REROLL_STOP : Infinity) : local - BIND_STOP;
+  const spinT = re ? re.t : local;
+  const spinSeed = re ? re.seed : seed;
+
+  const tick = Math.floor(Math.max(0, spinT) / 60);
+  const face = faceSpin ? pool[Math.floor(rand(spinSeed, tick) * pool.length)] : slot.agent;
+  const faceFlash = !faceSpin ? Math.max(0, 1 - faceSince / 250) : 0;
+  const pop = !faceSpin && faceSince < 200 ? 1 + 0.06 * (1 - faceSince / 200) : 1;
+  const chaos = !bindSpin && slot.bind.rarity === 'CHAOS';
+  const burstIn = chaos && bindSince < 350;
+  const badgeOn = re || local >= 125;
 
   return (
-    <div className={`cr-card ${faceFixed ? 'cr-fixed' : 'cr-spin'} ${chaos ? 'cr-chaos' : ''}`}
+    <div className={`cr-card ${faceSpin || bindSpin ? 'cr-spin' : 'cr-fixed'} ${chaos ? 'cr-chaos' : ''}`}
       style={{ transform: `scale(${chaos ? 1.04 : pop})` }}>
-      {chaos && <div className="cr-burst">CHAOS!!</div>}
+      {chaos && <div className={`cr-burst ${burstIn ? 'cr-burst-in' : ''}`}>CHAOS!!</div>}
       <div className="cr-pname">{slot.name}</div>
-      <div className="cr-aname">{faceFixed ? slot.agent.name : '？？？'}</div>
+      <div className="cr-aname">{faceSpin ? '？？？' : slot.agent.name}</div>
       <div className={`cr-role cr-role-${slot.agent.role}`}>{ROLE_LABEL[slot.agent.role]}</div>
       <div className="cr-img">
-        <img src={face.image} alt="" className={faceFixed ? '' : 'cr-blur'} />
+        <img src={face.image} alt="" className={faceSpin ? 'cr-blur' : ''} />
         {faceFlash > 0 && <div className="cr-flash-white" style={{ opacity: faceFlash }} />}
       </div>
-      <div className={`cr-bind ${badgeOn && !bindFixed ? `cr-glow-${slot.bind.rarity}` : ''}`}>
+      <div className={`cr-bind ${badgeOn && bindSpin ? `cr-glow-${slot.bind.rarity}` : ''}`}>
         {badgeOn && <RarityBadge rarity={slot.bind.rarity} />}
-        <p className={bindFixed ? '' : 'cr-scramble'}>
-          {bindFixed ? slot.bind.text : badgeOn ? scramble(slot.bind.text.split('\n').slice(0, 2).join('\n'), seed, Math.floor(local / 60)) : ''}
+        <p className={bindSpin ? 'cr-rolling' : ''}>
+          {!bindSpin ? slot.bind.text : badgeOn ? rollingBind(slot.bind.rarity, spinSeed, Math.floor(Math.max(0, spinT) / 90)) : ''}
         </p>
       </div>
     </div>
@@ -149,7 +172,7 @@ function RevealCard({ slot, seed, local }: { slot: TeamSlot; seed: string; local
 function mapSchedule(seed: string, poolSize: number, resultIndex: number) {
   const times: number[] = [];
   let at = 0;
-  let step = 55;
+  let step = 35;
   while (at < MAP_SPIN_MS) {
     times.push(at);
     at += step;
@@ -170,12 +193,11 @@ export function MapReveal({ event, t }: { event: Extract<RoomEvent, { kind: 'map
   while (k + 1 < times.length && times[k + 1] <= t) k++;
   const current = t < 0 ? -1 : seq[k];
   const stopped = t >= MAP_SPIN_MS;
-  const big = Math.max(0, Math.min(1, (t - MAP_SPIN_MS - 300) / 450));
-  const out = Math.max(0, Math.min(1, (t - (MAP_REVEAL_MS - 600)) / 600));
+  const big = Math.max(0, Math.min(1, (t - MAP_SPIN_MS - 150) / 300));
   const result = pool[resultIndex];
 
   return (
-    <div className="cr-reveal cr-side-MAP" style={{ opacity: 1 - out }}>
+    <div className="cr-reveal cr-side-MAP">
       <div className="cr-bg" />
       <div className="cr-stripes" />
       <h1 className="cr-title" style={{ transform: 'skewX(-8deg)' }}>MAP SELECTION</h1>
@@ -205,28 +227,26 @@ export function MyCard({ slot, side, reroll }: {
   slot: TeamSlot;
   side: Side;
   /** 振り直しの演出中なら、その対象と経過時間 */
-  reroll?: { target: 'agent' | 'bind'; t: number; seed: string } | null;
+  reroll?: RerollAnim | null;
 }) {
   const pool = useMemo(() => agentsOfRole(slot.agent.role), [slot.agent.role]);
-  const spinning = reroll && reroll.t < REROLL_MS * 0.7;
-  const tick = reroll ? Math.floor(Math.max(0, reroll.t) / 70) : 0;
+  const spinning = reroll && reroll.t < REROLL_STOP;
+  const tick = reroll ? Math.floor(Math.max(0, reroll.t) / 60) : 0;
   const face = spinning && reroll.target === 'agent' ? pool[Math.floor(rand(reroll.seed, tick) * pool.length)] : slot.agent;
-  const text = spinning && reroll.target === 'bind' ? scramble(slot.bind.text, reroll.seed, tick) : slot.bind.text;
-  const flash = reroll && !spinning ? Math.max(0, 1 - (reroll.t - REROLL_MS * 0.7) / 400) : 0;
+  const text = spinning && reroll.target === 'bind' ? rollingBind(slot.bind.rarity, reroll.seed, Math.floor(reroll.t / 90)) : slot.bind.text;
+  const flash = reroll && !spinning ? Math.max(0, 1 - (reroll.t - REROLL_STOP) / 250) : 0;
 
   return (
+    // 攻守は後半で入れ替わるので文字では出さず、左の色だけで最初の陣営を示す
     <div className={`cr-mine cr-mine-${side} ${slot.bind.rarity === 'CHAOS' ? 'cr-mine-chaos' : ''}`}>
       <div className="cr-mine-face">
         <img src={face.image} alt="" className={spinning && reroll.target === 'agent' ? 'cr-blur' : ''} />
       </div>
       <div className="cr-mine-txt">
-        <div className="cr-mine-top">
-          <span className="cr-mine-who">{slot.name}</span>
-          <span className="cr-mine-side">{SIDE_LABEL[side]}</span>
-        </div>
+        <div className="cr-mine-who">{slot.name}</div>
         <div className="cr-mine-ag">{spinning && reroll.target === 'agent' ? '？？？' : slot.agent.name}</div>
         <RarityBadge rarity={slot.bind.rarity} size="sm" />
-        <p className={spinning && reroll.target === 'bind' ? 'cr-scramble' : ''}>{text}</p>
+        <p className={spinning && reroll.target === 'bind' ? 'cr-rolling' : ''}>{text}</p>
       </div>
       {flash > 0 && <div className="cr-flash-white" style={{ opacity: flash * 0.8 }} />}
     </div>
