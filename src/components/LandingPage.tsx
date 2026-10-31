@@ -47,7 +47,8 @@ export function LandingPage() {
         </div>
         <p className="mt-4 text-xs text-gray-500 leading-relaxed [word-break:auto-phrase]">
           ルーム＝みんなで同じ結果を見る・配信に映す　／　ひとりで回す＝今までどおり画像で共有<br />
-          ルームの操作は代表1人でOK。ほかの人は参加してOBSにURLを入れるだけです。
+          ルームの操作は代表1人でOK。ほかの人は参加してOBSにURLを入れるだけです。<br />
+          ルームを短時間に作りすぎると、しばらく作れなくなります。
         </p>
         {failed && <p className="text-[#FF4655] text-sm mt-3">{failed}</p>}
       </section>
