@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { MAPS, mapImage } from '../data/maps';
 import {
   ROOM_PATTERN, NAME_MAX, TEAM_SIZE, eventDuration, mapPool,
@@ -9,6 +9,7 @@ import { createRoom, useRoom, useServerNow } from './connection';
 import { adoptUid, getSavedName, getUid, overlayUrl, saveName } from './identity';
 import { MapReveal, RarityBadge, ROLE_LABEL, SIDE_LABEL, Stage, TeamReveal } from './reveal';
 import { RoleIcon } from './RoleIcon';
+import { HowToModal } from './HowToModal';
 
 const SEAT_NEXT: Record<Seat, Seat> = { WATCH: 'ATK', ATK: 'DEF', DEF: 'WATCH' };
 const SEAT_STYLE: Record<Seat, string> = {
@@ -45,7 +46,7 @@ export function CreateRoomButton() {
         disabled={busy}
         onClick={async () => {
           setBusy(true); setFailed(null);
-          try { navigate(`/r/${await createRoom()}`); } catch (e) { setFailed((e as Error).message); } finally { setBusy(false); }
+          try { navigate(`/r/${await createRoom()}`, { state: { howto: true } }); } catch (e) { setFailed((e as Error).message); } finally { setBusy(false); }
         }}
         className="bg-[#46CBFF] hover:bg-[#2fb5ea] text-[#0F1923] font-black py-3 px-10 tracking-[0.2em] text-sm disabled:opacity-50"
       >
@@ -66,6 +67,14 @@ export function RoomPage() {
     return getUid();
   });
   const room = useRoom(ROOM_PATTERN.test(roomId) ? roomId : null, uid, 'page');
+  const loc = useLocation();
+  // 「ルームを作る」から来たときだけ、使い方の窓を1回出す（再読み込みでは出さない）
+  const fromCreate = (loc.state as { howto?: boolean } | null)?.howto === true;
+  const [howto, setHowto] = useState<null | 'created' | 'again'>(() => (fromCreate ? 'created' : null));
+  useEffect(() => {
+    if (fromCreate) navigate(loc.pathname, { replace: true, state: null });
+  }, [fromCreate, loc.pathname, navigate]);
+  const howtoModal = howto && <HowToModal created={howto === 'created'} onClose={() => setHowto(null)} />;
 
   useEffect(() => {
     if (room.movedTo) navigate(`/r/${room.movedTo}`, { replace: true });
@@ -81,17 +90,19 @@ export function RoomPage() {
     );
   }
   if (!room.state) {
-    return <div className="text-center mt-24 text-[#FF4655] font-black tracking-[0.4em] animate-pulse">CONNECTING…</div>;
+    return <>{howtoModal}<div className="text-center mt-24 text-[#FF4655] font-black tracking-[0.4em] animate-pulse">CONNECTING…</div></>;
   }
   if (!room.memberId) {
-    return <JoinForm onJoin={name => room.act({ type: 'join', uid, name })} error={room.error}
-      onAdopt={input => { if (!adoptUid(input)) return false; setUid(getUid()); return true; }} />;
+    return <>{howtoModal}<JoinForm onJoin={name => room.act({ type: 'join', uid, name })} error={room.error}
+      onHowTo={() => setHowto('again')}
+      onAdopt={input => { if (!adoptUid(input)) return false; setUid(getUid()); return true; }} /></>;
   }
-  return <RoomView room={room} state={room.state} uid={uid} memberId={room.memberId} />;
+  return <>{howtoModal}<RoomView room={room} state={room.state} uid={uid} memberId={room.memberId} /></>;
 }
 
-function JoinForm({ onJoin, onAdopt, error }: {
+function JoinForm({ onJoin, onAdopt, onHowTo, error }: {
   onJoin: (name: string) => void;
+  onHowTo: () => void;
   onAdopt: (input: string) => boolean;
   error: string | null;
 }) {
@@ -107,7 +118,14 @@ function JoinForm({ onJoin, onAdopt, error }: {
   };
   return (
     <div className="max-w-md mx-auto mt-10 bg-[#172129]/90 border border-white/10 p-8">
-      <h2 className="text-xl font-black mb-2">ルームに参加</h2>
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <h2 className="text-xl font-black">ルームに参加</h2>
+        <button type="button" onClick={onHowTo}
+          className="inline-flex items-center gap-1.5 border border-white/30 hover:bg-white/10 text-white/90 font-black text-xs px-2.5 py-1.5">
+          <span className="inline-flex w-[18px] h-[18px] rounded-full border-[1.5px] border-current text-[11px] items-center justify-center" aria-hidden="true">?</span>
+          使い方
+        </button>
+      </div>
       <p className="text-sm text-gray-400 mb-6 leading-relaxed [word-break:auto-phrase]">
         名前を入れて参加してください（次回からは自動で入ります）。<br />
         操作は代表1人でOK。ほかの人は参加してOBSにURLを入れるだけです。
@@ -115,7 +133,7 @@ function JoinForm({ onJoin, onAdopt, error }: {
       <form onSubmit={submit} className="flex gap-2">
         <input value={name} maxLength={NAME_MAX} onChange={e => setName(e.target.value)} placeholder="名前"
           className="flex-1 bg-[#0F1923] border border-gray-600 text-white px-4 py-3 font-bold outline-none focus:border-[#FF4655]" />
-        <button className="bg-[#FF4655] hover:bg-[#D93645] text-white font-black px-6">参加</button>
+        <button className="bg-[#FF4655] hover:bg-[#D93645] text-white font-black px-6 whitespace-nowrap">参加</button>
       </form>
       {error && <p className="text-[#FF4655] text-sm mt-3">{error}</p>}
       <details className="mt-8 text-sm text-gray-400">

@@ -15,7 +15,7 @@ export function LandingPage() {
   const [failed, setFailed] = useState<string | null>(null);
   const startRoom = async () => {
     setBusy(true); setFailed(null);
-    try { navigate(`/r/${await createRoom()}`); } catch (e) { setFailed((e as Error).message); } finally { setBusy(false); }
+    try { navigate(`/r/${await createRoom()}`, { state: { howto: true } }); } catch (e) { setFailed((e as Error).message); } finally { setBusy(false); }
   };
 
   return (
