@@ -6,7 +6,7 @@ import {
   RANKS, UNRANKED_POINTS, rankOf, teamPoints, isRankId, BIND_RARITIES, isBindRarity,
   type ClientMessage, type MapMode, type Member, type RankId, type RoomState, type Seat, type Side,
 } from '../logic/room';
-import { createRoom, useRoom, useServerNow } from './connection';
+import { addDummyMembers, createRoom, useRoom, useServerNow } from './connection';
 import { adoptUid, getSavedName, getSavedRank, getUid, overlayUrl, saveName, saveRank } from './identity';
 import { MapReveal, RarityBadge, ROLE_LABEL, SIDE_LABEL, Stage, TeamReveal } from './reveal';
 import { RoleIcon } from './RoleIcon';
@@ -155,7 +155,7 @@ function JoinForm({ onJoin, onAdopt, onHowTo, error }: {
         </button>
       </div>
       <p className="text-sm text-gray-400 mb-6 leading-relaxed [word-break:auto-phrase]">
-        名前を入れて参加してください（次回からは自動で入ります）。<br />
+        名前とランクを選んで参加してください。<br />前回の内容が入っています（ランクは参加後も変えられます）。<br />
         操作は代表1人でOK。ほかの人は参加してOBSにURLを入れるだけです。
       </p>
       <p className="text-sm font-bold mb-1.5">最高ランク<span className="text-gray-400 font-normal ml-2">チーム分けの目安になります</span></p>
@@ -316,6 +316,14 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
         <button className={btnGhost} onClick={() => {
           if (confirm('新しい試合を始めますか？\n全員の抽選結果・OBSの表示・マップのPICK/BANが消えます。\n（チーム分けと、一度出たマップの「済」は残ります）')) act({ type: 'newMatch' });
         }}>新しい試合（結果をリセット）</button>
+        {import.meta.env.DEV && (
+          // 手元の確認用（本番には出ない）：ランクばらばらの試験の参加者を入れる
+          <button className={`${btnGhost} border-dashed`} onClick={async () => {
+            const n = Math.max(0, 10 - state.members.length) || 9;
+            const ranks = ['radiant', 'iron', 'immortal', 'bronze', 'ascendant', 'silver', 'diamond', 'gold', 'platinum', null, 'gold', 'diamond'];
+            await addDummyMembers(location.pathname.split('/').pop() ?? '', n, ranks.sort(() => Math.random() - 0.5));
+          }}>（手元だけ）試験の参加者を入れる</button>
+        )}
         <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
           <input type="checkbox" checked={showReveal} onChange={ev => {
             setShowReveal(ev.target.checked);

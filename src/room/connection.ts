@@ -32,6 +32,28 @@ export async function createRoom(): Promise<string> {
   return (await res.json()).roomId;
 }
 
+/**
+ * 手元の確認用：試験の参加者を名簿に入れる（本番のビルドでは使わない）。
+ * 1人ずつ別のIDでつないで参加し、すぐ切る（名簿には残る）
+ */
+export async function addDummyMembers(roomId: string, count: number, ranks: (string | null)[]): Promise<void> {
+  const names = ['ねこまる', 'Kaze', 'たぬき', 'みかん', 'そら', 'りく', 'ゆず', 'こはく', 'まめ', 'しらす', 'もち', 'くるみ'];
+  const stamp = Date.now().toString(36).slice(-3);
+  for (let i = 0; i < count; i++) {
+    const bytes = crypto.getRandomValues(new Uint8Array(12));
+    const uid = Array.from(bytes, b => b.toString(36).padStart(2, '0')).join('').slice(0, 20);
+    await new Promise<void>(resolve => {
+      const ws = new WebSocket(wsUrl(`/rs/room/${roomId}?uid=${uid}&as=page`));
+      const done = () => { try { ws.close(); } catch { /* 閉じ済み */ } resolve(); };
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'join', uid, name: `${names[i % names.length]}${stamp}`, rank: ranks[i % ranks.length] }));
+        setTimeout(done, 150);
+      };
+      ws.onerror = done;
+    });
+  }
+}
+
 /** 縛りアイデアを送る。送れなかったときは、画面にそのまま出せる理由を投げる */
 export async function submitBind(category: string, text: string): Promise<void> {
   let res: Response;
