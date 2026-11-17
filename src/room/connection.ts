@@ -197,13 +197,12 @@ export function useServerNow(offset: React.MutableRefObject<number>, fast: boole
   useEffect(() => {
     let raf = 0;
     let timer = 0;
-    const tick = () => {
-      setNow(Date.now() + offset.current);
-      if (fast) raf = requestAnimationFrame(tick);
-    };
-    // 画面に出ていないタブやOBSのソースでは描画の合図が止まるので、タイマーでも進める
-    if (fast) raf = requestAnimationFrame(tick);
-    timer = window.setInterval(tick, fast ? 100 : 250);
+    const update = () => setNow(Date.now() + offset.current);
+    // 描画の合図ごとに進める（1本だけ回す。11/17 タイマーからも合図を足していて、演出中に何十本も重なり重くなっていた）
+    const frame = () => { update(); raf = requestAnimationFrame(frame); };
+    if (fast) raf = requestAnimationFrame(frame);
+    // 画面に出ていないタブやOBSのソースでは描画の合図が止まるので、タイマーでも進める（こちらは合図を足さない）
+    timer = window.setInterval(update, fast ? 100 : 250);
     return () => { cancelAnimationFrame(raf); window.clearInterval(timer); };
   }, [fast, offset]);
   return now;

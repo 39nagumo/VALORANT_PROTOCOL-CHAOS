@@ -299,7 +299,7 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
 
       <div className="grid gap-3 lg:grid-cols-[minmax(560px,720px)_minmax(0,1fr)] items-start [&>*]:min-w-0">
         <div>
-          <Roster members={state.members} memberId={memberId} owner={state.owner ?? null} act={act} focus={step === 'gather'} />
+          <Roster members={state.members} memberId={memberId} owner={state.owner ?? null} act={act} focus={step === 'gather'} started={!!(state.teams.ATK || state.teams.DEF)} />
           {/* 11/17 本人：回す人以外は、この画面を閉じてよいことを枠の外に薄い赤字で */}
           <p className="text-[13px] mt-2 px-1 leading-relaxed"><span className="text-[#FF4655]/70">参加してOBSの設定が済んだら、代表して回す人以外はこの画面を閉じて大丈夫です。</span><br /><span className="text-white/50">名前やランクを変えるときは、招待リンクからまた開いてください。</span></p>
         </div>
@@ -373,7 +373,7 @@ function Guide({ step, state, locked, act }: { step: StepKey; state: RoomState; 
       text = n('ATK') > TEAM_SIZE || n('DEF') > TEAM_SIZE
         ? <><b className="text-amber-300">{n('ATK') > TEAM_SIZE ? `ATKが${n('ATK')}人` : ''}{n('ATK') > TEAM_SIZE && n('DEF') > TEAM_SIZE ? '・' : ''}{n('DEF') > TEAM_SIZE ? `DEFが${n('DEF')}人` : ''}</b> います。5人ずつにしてください（今 ATK {n('ATK')}/5・DEF {n('DEF')}/5）。</>
         : <>左の名簿の「ATK・DEF」を押して <b>5人ずつ</b> 振り分けましょう（「ランダムでチーム分け」でもOK）（今 ATK {n('ATK')}/5・DEF {n('DEF')}/5）。</>;
-      action = <button className={btnGhost} onClick={() => act({ type: 'randomTeams' })}>ランダムでチーム分け</button>;
+      action = <button className={btnGhost} onClick={() => randomTeams(!!(state.teams.ATK || state.teams.DEF), act)}>ランダムでチーム分け</button>;
       break;
     case 'atk':
       text = <>10人そろいました！まずは <b className="text-[#FF4655]">ATTACKER</b> を回しましょう。</>;
@@ -438,7 +438,13 @@ const SEAT_ORDER: Seat[] = ['ATK', 'WATCH', 'DEF'];
 const SEAT_ON: Record<Seat, string> = { ATK: 'bg-[#FF4655] text-white', DEF: 'bg-[#46CBFF] text-[#0F1923]', WATCH: 'bg-white/25 text-white' };
 
 /** 名簿：2列。1人ずつ「ATK・観戦・DEF」の3つのボタンで行き先を選ぶ */
-function Roster({ members, memberId, owner, act, focus }: { members: Member[]; memberId: string; owner: string | null; act: Act; focus: boolean }) {
+/** ランダムでチーム分け。縛りガチャを回し始めた後は、押し間違いに備えて確かめる（11/17 本人。文言はほかの確認とそろえる） */
+function randomTeams(started: boolean, act: Act) {
+  if (started && !confirm('チーム分けをやり直しますか？\nもう縛りガチャを回し始めています。やり直すと、回した結果はもう一度回し直しが必要になります。')) return;
+  act({ type: 'randomTeams' });
+}
+
+function Roster({ members, memberId, owner, act, focus, started }: { members: Member[]; memberId: string; owner: string | null; act: Act; focus: boolean; started: boolean }) {
   const count = (seat: Seat) => members.filter(m => m.seat === seat).length;
   const points = (seat: Seat) => teamPoints(members.filter(m => m.seat === seat));
   const iAmOwner = owner === memberId;
@@ -447,7 +453,7 @@ function Roster({ members, memberId, owner, act, focus }: { members: Member[]; m
       <div className="flex items-center gap-3 mb-2">
         <h3 className="font-black text-lg">参加者 {members.length}人</h3>
         <span className="text-[11px] text-gray-400">押した所の陣営に入る</span>
-        <button className={`${btnYellow} ml-auto text-base px-5 py-2.5`} onClick={() => act({ type: 'randomTeams' })}>ランダムでチーム分け</button>
+        <button className={`${btnYellow} ml-auto text-base px-5 py-2.5`} onClick={() => randomTeams(started, act)}>ランダムでチーム分け</button>
       </div>
       <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-2.5 gap-y-1.5">
         {members.map(m => (
@@ -519,16 +525,16 @@ function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealin
   const changed = roll && (roll.slots.length !== seated.length || roll.slots.some(s => !seated.some(m => m.id === s.memberId)));
   // 操作の帯を開いている人
   const [openId, setOpenId] = useState<string | null>(null);
-  // 開いた帯は、その人の行の外を触ったら閉じる（11/17 本人「設定だけして次の操作できたほうが楽」）
+  // 開いた帯は、その人の行の外を触ったら閉じる（11/17 本人「設定だけして次の操作できたほうが楽」）。押した瞬間でなく押し終わってから閉じる（押した瞬間に閉じると下の欄が上にずれて、別のボタンを押してしまう）
   useEffect(() => {
     if (!openId) return;
-    const close = (e: PointerEvent) => {
+    const close = (e: MouseEvent) => {
       const row = (e.target as Element | null)?.closest?.('[data-slot]');
       // 人の行を押したときは、その行の onClick が切り替える（押す瞬間に閉じると行が上にずれて、別の人を開いてしまう）
       if (!row || row.getAttribute('data-side') !== side) setOpenId(null);
     };
-    document.addEventListener('pointerdown', close);
-    return () => document.removeEventListener('pointerdown', close);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
   }, [openId, side]);
   const memberOf = (id: string) => state.members.find(m => m.id === id);
   const pickNote = (m?: Member) => m && (m.bindPick || m.extraRarity)
@@ -643,13 +649,13 @@ function MapPanel({ state, locked, act, focus, spinning }: { state: RoomState; l
           const out = (mode === 'BAN' && marked) || (mode === 'PICK' && !marked) || (used && !current && !(spinning && state.map === m.id));
           return (
             <button key={m.id} onClick={() => act({ type: 'mapMark', mapId: m.id })}
-              className={`relative aspect-video overflow-hidden border-2 ${current ? 'border-[#ffd83b]' : mode === 'PICK' && marked ? 'border-[#FF4655]' : 'border-white/10'}`}>
+              className={`relative aspect-video overflow-hidden border-2 ${current ? 'border-[#ffd83b]' : marked ? (mode === 'PICK' ? 'border-[#FF4655]' : 'border-[#46CBFF]') : 'border-white/10'}`}>
               <img src={mapImage(m)} alt="" className={`absolute inset-0 w-full h-full object-cover ${out ? 'grayscale opacity-30' : ''}`} />
               <span className="absolute inset-x-0 bottom-0 text-sm font-black tracking-wider bg-black/60 py-0.5">{m.name}</span>
               {(current || (used && !(spinning && state.map === m.id)) || marked) && (
-                <span className={`absolute top-0.5 left-0.5 text-[9px] font-black px-1 ${
-                  current ? 'bg-[#ffd83b] text-[#2b2a3f]' : marked ? (mode === 'PICK' ? 'bg-[#FF4655]' : 'bg-gray-700') : 'bg-black/70'}`}>
-                  {current ? '今回' : marked ? mode : '済'}
+                <span className={`absolute top-1 left-1 text-xs font-black px-1.5 py-0.5 ${
+                  current ? 'bg-[#ffd83b] text-[#2b2a3f]' : marked ? (mode === 'PICK' ? 'bg-[#FF4655] text-white' : 'bg-[#46CBFF] text-[#0F1923]') : 'bg-black/80 text-white'}`}>
+                  {current ? '今回' : marked ? (used ? `${mode}・済` : mode) : '済'}
                 </span>
               )}
             </button>

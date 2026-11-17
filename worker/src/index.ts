@@ -340,11 +340,13 @@ export class Room extends DurableObject<Env> {
       }
       case 'mapMode':
         if (msg.mode !== 'PICK' && msg.mode !== 'BAN') return;
+        busy();
         if (s.mapMode !== msg.mode) { s.mapMode = msg.mode; s.mapMarks = []; }
         this.showMapSetup(by);
         break;
       case 'mapMark': {
         if (!MAPS.some(m => m.id === msg.mapId)) return;
+        busy();
         const marks = s.mapMarks ?? [];
         s.mapMarks = marks.includes(msg.mapId) ? marks.filter(id => id !== msg.mapId) : [...marks, msg.mapId];
         this.showMapSetup(by);
@@ -371,9 +373,11 @@ export class Room extends DurableObject<Env> {
         break;
       case 'showMapSetup':
         if (s.display?.kind === 'mapSetup') return;
+        busy();
         this.showMapSetup(by);
         break;
       case 'mapClearHistory':
+        busy();
         s.mapHistory = [];
         this.showMapSetup(by);
         break;
