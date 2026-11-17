@@ -3,9 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import agents from '../data/agents.json';
 import binds from '../data/binds.json';
 import type { Agent, BindRarity } from '../logic/gacha';
-import type { RoomEvent, Side, TeamRoll } from '../logic/room';
+import type { Member, RankId, RoomEvent, Side, TeamRoll } from '../logic/room';
 import { MAPS } from '../data/maps';
-import { BindText, bindFontSize, MapBoard, MapReveal, MyCard, RarityBadge, RARITY_COLOR, Stage, TeamReveal } from './reveal';
+import { BindText, bindFontSize, MapBoard, TeamBoard, MapReveal, MyCard, RarityBadge, RARITY_COLOR, Stage, TeamReveal } from './reveal';
 
 // 開発中だけ使う見た目の確認ページ（/dev/reveal?kind=team&t=5000）。本番ビルドには入らない
 const pickAgent = (name: string) => (agents as Agent[]).find(a => a.name === name)!;
@@ -18,6 +18,14 @@ const sample = (side: Side): TeamRoll => ({
     [pickAgent('キルジョイ'), b('Exotic')], [pickAgent('レイズ'), b('Special', 1)],
   ].map(([agent, bind], i) => ({ memberId: `m${i}`, name: NAMES[i], agent: agent as Agent, bind: bind as TeamRoll['slots'][0]['bind'] })),
 });
+
+// チーム分けの画面の見本（?kind=teams&n=10&shuffle=1&t=600）
+const TB: [string, RankId | null, Member['seat']][] = [
+  ['なぐも', 'diamond', 'ATK'], ['ねこまる', 'gold', 'DEF'], ['Kaze', 'immortal', 'DEF'], ['とても長い名前のプレイヤー', 'platinum', 'ATK'],
+  ['たぬき', null, 'ATK'], ['もふり', 'ascendant', 'ATK'], ['ちと', 'silver', 'DEF'], ['Yuki', 'platinum', 'DEF'], ['しろ', 'bronze', 'ATK'], ['くろ', 'diamond', 'DEF'],
+  ['観戦の人', 'radiant', 'WATCH'],
+];
+const tbMembers = (n: number): Member[] => TB.slice(0, n).map(([name, rank, seat], i) => ({ id: 'tb' + i, name, rank, seat, online: true }));
 
 export function DevPreview() {
   const [p] = useSearchParams();
@@ -47,6 +55,7 @@ export function DevPreview() {
               ))}
           </div>
         )}
+        {kind === 'teams' && <TeamBoard members={tbMembers(Number(p.get('n') ?? 11))} by="なぐも" t={t} shuffled={p.get('shuffle') === '1'} seed="preview" />}
         {kind === 'board' && <MapBoard mode={(p.get('mode') ?? 'BAN') as 'PICK' | 'BAN'} marks={['ascent', 'bind', 'lotus']} history={['pearl']} by="なぐも" />}
         {kind === 'card' && (
           <div style={{ position: 'absolute', left: 24, top: 478 }}>

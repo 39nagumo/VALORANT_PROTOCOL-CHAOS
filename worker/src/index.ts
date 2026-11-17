@@ -5,7 +5,7 @@ import type { Bind } from '../../src/logic/gacha';
 import { MAPS } from '../../src/data/maps';
 import {
   ClientMessage, Member, RoomEvent, RoomState, ServerMessage, Side, TeamRoll,
-  TEAM_SIZE, EVENT_LEAD_MS, eventDuration,
+  TEAM_SIZE, EVENT_LEAD_MS, TEAM_SHUFFLE_MS, eventDuration,
   UID_PATTERN, ROOM_PATTERN, NAME_MAX, mapPool, isRankId, rankPoints, balancedSplit, isBindRarity, type RankId,
 } from '../../src/logic/room';
 
@@ -216,7 +216,7 @@ export class Room extends DurableObject<Env> {
     if (!s.owner && s.members.length) s.owner = s.members[0].id;
     const now = Date.now();
     const busy = () => {
-      if (now < s.lockUntil) throw new UserError(`${s.event?.by ?? '誰か'}さんの抽選の演出中です`);
+      if (now < s.lockUntil) throw new UserError(s.display?.kind === 'teamSetup' && s.display.shuffled ? `${s.display.by}さんのチーム分けの演出中です` : `${s.event?.by ?? '誰か'}さんの抽選の演出中です`);
     };
 
     // 届いた値の形を先に確かめる（画面から普通に送られる値以外は黙って捨てる）
@@ -276,11 +276,13 @@ export class Room extends DurableObject<Env> {
         const m = s.members.find(x => x.id === msg.memberId);
         if (!m) throw new UserError('名簿に見つかりません');
         if (msg.seat !== 'ATK' && msg.seat !== 'DEF' && msg.seat !== 'WATCH') return;
+        if (s.display?.kind === 'teamSetup' && s.display.shuffled && now < s.lockUntil) throw new UserError(`${s.display.by}さんのチーム分けの演出中です`);
         // 振り分けの途中で一時的に5人を超えてもよい（回すときに5人ちょうどかを見る）
         m.seat = msg.seat;
         break;
       }
       case 'randomTeams': {
+        busy();
         // 今チームにいる人を優先し、足りなければOBSを開いている人→それ以外の順に補う
         const seated = s.members.filter(m => m.seat !== 'WATCH');
         const rest = s.members.filter(m => m.seat === 'WATCH');
@@ -291,6 +293,11 @@ export class Room extends DurableObject<Env> {
         s.members.forEach(m => { m.seat = 'WATCH'; });
         atk.forEach(m => { m.seat = 'ATK'; });
         def.forEach(m => { m.seat = 'DEF'; });
+        // 分けた結果は、名前が回ってから決まる演出つきでOBSに出す。
+        // 演出が終わるまでは、ほかの抽選も席の移動も受け付けない（管理する人の画面だけ先に進めないように）
+        const startedAt = now + EVENT_LEAD_MS;
+        s.display = { kind: 'teamSetup', id: crypto.randomUUID(), startedAt, by, shuffled: true };
+        s.lockUntil = startedAt + TEAM_SHUFFLE_MS;
         break;
       }
       case 'roll': {
@@ -370,6 +377,11 @@ export class Room extends DurableObject<Env> {
       }
       case 'closeDisplay':
         s.display = null;
+        break;
+      case 'showTeamSetup':
+        if (s.display?.kind === 'teamSetup') return;
+        busy();
+        s.display = { kind: 'teamSetup', id: crypto.randomUUID(), startedAt: now, by };
         break;
       case 'showMapSetup':
         if (s.display?.kind === 'mapSetup') return;

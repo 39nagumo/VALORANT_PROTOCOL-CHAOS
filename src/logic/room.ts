@@ -124,7 +124,12 @@ export type RoomEvent =
 
 /** マップのPICK/BANを話し合っている途中の画面（印の状態をそのまま映す） */
 export interface MapSetupDisplay { kind: 'mapSetup'; id: string; startedAt: number; by: string }
-export type RoomDisplay = Extract<RoomEvent, { kind: 'team' | 'map' }> | MapSetupDisplay;
+/**
+ * 回す前のチーム分け（ATK・DEF の名前とランク）をOBSに出し続ける画面。席を動かすとそのまま映る。
+ * shuffled＝「ランダムでチーム分け」で出した（名前が回ってから決まる演出をする）
+ */
+export interface TeamSetupDisplay { kind: 'teamSetup'; id: string; startedAt: number; by: string; shuffled?: boolean }
+export type RoomDisplay = Extract<RoomEvent, { kind: 'team' | 'map' }> | MapSetupDisplay | TeamSetupDisplay;
 
 export interface RoomState {
   members: Member[];
@@ -148,6 +153,8 @@ export const TEAM_STEP_MS = 750;
 export const TEAM_REVEAL_MS = TEAM_INTRO_MS + TEAM_STEP_MS * TEAM_SIZE + 300;
 export const REROLL_MS = 800;
 export const MAP_SPIN_MS = 2100;
+/** ランダムでチーム分けしたときの、OBSで名前が回ってから全員決まるまでの長さ */
+export const TEAM_SHUFFLE_MS = 1700;
 export const MAP_REVEAL_MS = MAP_SPIN_MS + 700;
 /** 押してから演出が始まるまでの余裕（全員に届くのを待つ） */
 export const EVENT_LEAD_MS = 400;
@@ -165,6 +172,7 @@ export type ClientMessage =
   | { type: 'mapMark'; mapId: string }
   | { type: 'mapRoll' }
   | { type: 'showMapSetup' }
+  | { type: 'showTeamSetup' }
   | { type: 'mapClearHistory' }
   | { type: 'closeDisplay' }
   | { type: 'newMatch' }

@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type Re
 import type { Agent, Bind } from '../logic/gacha';
 import { agentsOfRole, bindsOfRarity } from '../logic/reroll';
 import { MAPS, mapImage } from '../data/maps';
-import { RoomEvent, Side, TeamRoll, TeamSlot, TEAM_INTRO_MS, TEAM_STEP_MS, MAP_SPIN_MS, type MapMode } from '../logic/room';
+import { RoomEvent, Side, TeamRoll, TeamSlot, TEAM_INTRO_MS, TEAM_STEP_MS, MAP_SPIN_MS, TEAM_SIZE, rankOf, rankPoints, type MapMode, type Member, type RankId } from '../logic/room';
 import { RoleIcon } from './RoleIcon';
 import './room.css';
 
@@ -109,11 +109,11 @@ export function RarityBadge({ rarity, size = 'md' }: { rarity: Bind['rarity']; s
 }
 
 /** 左上の見出し：ロゴ＋何の抽選か＋回した人 */
-function Header({ label, tone, by, t, byLabel = '抽選' }: { label: string; tone: 'ATK' | 'DEF' | 'MAP'; by: string; t: number; byLabel?: string }) {
+function Header({ label, tone, by, t, byLabel = '抽選', center = false }: { label: string; tone: 'ATK' | 'DEF' | 'MAP'; by: string; t: number; byLabel?: string; center?: boolean }) {
   const logoIn = Math.max(0, Math.min(1, t / 250));
   const tagIn = Math.max(0, Math.min(1, (t - 120) / 220));
   return (
-    <div className="cr-head">
+    <div className={`cr-head ${center ? 'cr-head-center' : ''}`}>
       <div className="cr-logo" style={{ opacity: logoIn, transform: `scale(${0.8 + logoIn * 0.2}) rotate(${(1 - logoIn) * -6}deg)` }}>
         <img src={LOGO} alt="CHAOSガチャ" />
       </div>
@@ -293,6 +293,69 @@ export function MapBoard({ mode, marks, history, by }: { mode: MapMode; marks: s
         })}
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- 回す前のチーム分け
+
+/** 「ランダムでチーム分け」の演出の中で、上から i 段目の名前が止まる時刻 */
+const shuffleStop = (i: number) => 450 + i * 230;
+
+/**
+ * 回す前のチーム分けをOBSに出す画面。ATK と DEF を左右に並べ、名前の横にランクの札を出す。
+ * ランクの高い順に上から並べるので、同じ段どうしで見比べると釣り合いが分かる（点数は出さない）。
+ * shuffled のときは、名前が回ってから上の段から順に決まる
+ */
+export function TeamBoard({ members, by, t, shuffled, seed }: {
+  members: Member[]; by: string; t: number; shuffled: boolean; seed: string;
+}) {
+  const sides: Side[] = ['ATK', 'DEF'];
+  const cols = sides.map(side => members
+    .filter(m => m.seat === side)
+    .sort((a, b) => rankPoints(b.rank) - rankPoints(a.rank) || (rankOf(b.rank) ? 1 : 0) - (rankOf(a.rank) ? 1 : 0)));
+  const rows = Math.max(TEAM_SIZE, ...cols.map(c => c.length));
+  const seated = members.filter(m => m.seat !== 'WATCH');
+  const rowH = rows <= TEAM_SIZE ? 100 : Math.floor((620 - (rows - 1) * 12) / rows);
+  const spin = shuffled && t < shuffleStop(rows - 1);
+  return (
+    <div className="cr-reveal cr-side-MAP">
+      <Header label="TEAM" tone="MAP" by={by} t={shuffled ? t + 400 : 1000} byLabel="操作" center />
+      <div className="cr-tb">
+        {sides.map((side, c) => (
+          <div key={side} className={`cr-tb-col cr-tb-${side}`}>
+            <div className={`cr-tag cr-tag-sm cr-tag-${side} cr-tb-tag`}>{SIDE_LABEL[side]}</div>
+            {Array.from({ length: rows }, (_, i) => {
+              const m = cols[c][i];
+              if (!m) return <div key={`e${i}`} className="cr-tb-row cr-tb-empty" style={{ height: rowH }}>？</div>;
+              const rolling = spin && t < shuffleStop(i);
+              const shown = rolling && seated.length ? seated[Math.floor(rand(`${seed}:${side}:${i}`, spinTick(t, 70)) * seated.length)] : m;
+              const since = shuffled ? t - shuffleStop(i) : Infinity;
+              const flash = since >= 0 ? Math.max(0, 1 - since / 300) : 0;
+              const pop = since >= 0 && since < 220 ? 1 + 0.04 * Math.sin((since / 220) * Math.PI) : 1;
+              const fs = rowH >= 90 ? 44 : rowH >= 70 ? 32 : 24;
+              return (
+                <div key={m.id} className={`cr-tb-row ${rolling ? 'cr-tb-rolling' : ''}`} style={{ height: rowH, transform: `scale(${pop})` }}>
+                  <span className="cr-tb-name" style={{ fontSize: shown.name.length > 10 ? fs - 8 : fs }}>{shown.name}</span>
+                  <BoardRank rank={m.rank} big={rowH >= 70} hidden={rolling} />
+                  {flash > 0 && <div className="cr-flash-white" style={{ opacity: flash * 0.7 }} />}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+        <div className="cr-tb-vs">VS</div>
+      </div>
+    </div>
+  );
+}
+
+/** ランクの札（文字の色と細い枠だけ。地は塗らない）。選んでいない人は薄く「未設定」 */
+function BoardRank({ rank, big, hidden = false }: { rank: RankId | null | undefined; big: boolean; hidden?: boolean }) {
+  const r = rankOf(rank);
+  return (
+    // hidden：名前が回っている間は場所だけ取って隠す（決まった瞬間に名前の位置がずれないように）
+    <span className={`cr-tb-rank ${big ? '' : 'cr-tb-rank-sm'} ${r ? '' : 'cr-tb-rank-none'}`}
+      style={{ ...(r ? { color: r.fg, borderColor: r.fg } : {}), visibility: hidden ? 'hidden' : undefined }}>{r ? r.label : '未設定'}</span>
   );
 }
 

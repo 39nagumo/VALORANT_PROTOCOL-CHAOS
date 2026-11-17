@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { UID_PATTERN, eventDuration, type RoomDisplay, type Side, type TeamSlot } from '../logic/room';
+import { UID_PATTERN, TEAM_SHUFFLE_MS, eventDuration, type RoomDisplay, type Side, type TeamSlot } from '../logic/room';
 import { useCurrentRoomOf, useRoom, useServerNow } from './connection';
-import { MapBoard, MapReveal, MyCard, Stage, TeamReveal } from './reveal';
+import { MapBoard, MapReveal, MyCard, Stage, TeamBoard, TeamReveal } from './reveal';
 import { MAPS, mapImage } from '../data/maps';
 import agentsData from '../data/agents.json';
 import type { Agent } from '../logic/gacha';
@@ -36,7 +36,9 @@ export function OverlayPage() {
   const valid = UID_PATTERN.test(uid);
   const { roomId, known } = useCurrentRoomOf(valid ? uid : null);
   const { state, memberId, offset, skipEventId } = useRoom(valid ? roomId : null, uid, 'overlay');
-  const now = useServerNow(offset, !!state && Date.now() + offset.current < state.lockUntil + 800);
+  // 演出の間だけ細かく進める（チーム分けの名前が回る間も）
+  const shuffleEnd = state?.display?.kind === 'teamSetup' && state.display.shuffled ? state.display.startedAt + TEAM_SHUFFLE_MS : 0;
+  const now = useServerNow(offset, !!state && Date.now() + offset.current < Math.max(state.lockUntil, shuffleEnd) + 800);
 
   // 起動直後だけ、つながっているかを小さく出す（配信に長く映らないように）
   const [hint, setHint] = useState(true);
@@ -90,6 +92,9 @@ export function OverlayPage() {
         )}
         {part !== 'card' && display?.kind === 'map' && (
           <MapReveal event={display} t={dT} mode={state?.mapMode ?? 'BAN'} marks={state?.mapMarks ?? []} />
+        )}
+        {part !== 'card' && display?.kind === 'teamSetup' && state && (
+          <TeamBoard members={state.members} by={display.by} t={dT} shuffled={!!display.shuffled} seed={display.id} />
         )}
         {part !== 'card' && display?.kind === 'mapSetup' && state && (
           <MapBoard mode={state.mapMode ?? 'BAN'} marks={state.mapMarks ?? []} history={state.mapHistory ?? []} by={display.by} />

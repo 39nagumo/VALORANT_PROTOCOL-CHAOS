@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { MAPS, mapImage } from '../data/maps';
 import {
-  ROOM_PATTERN, NAME_MAX, TEAM_SIZE, eventDuration, mapPool,
+  ROOM_PATTERN, NAME_MAX, TEAM_SIZE, TEAM_SHUFFLE_MS, eventDuration, mapPool,
   RANKS, UNRANKED_POINTS, rankOf, teamPoints, isRankId, BIND_RARITIES, isBindRarity,
   type ClientMessage, type MapMode, type Member, type RankId, type RoomState, type Seat, type Side,
 } from '../logic/room';
@@ -221,6 +221,8 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
 
   const e = state.event;
   const active = e && e.id !== room.skipEventId && now < e.startedAt + eventDuration(e) ? e : null;
+  // ランダムでチーム分けの演出中（OBSで名前が回っている間）は、この画面でも結果を伏せる
+  const shuffling = state.display?.kind === 'teamSetup' && !!state.display.shuffled && now < state.display.startedAt + TEAM_SHUFFLE_MS ? state.display : null;
   // この画面では演出の間だけ大きく見せる（OBSは閉じるまで出し続ける）
   const modal = showReveal && active && active.kind !== 'reroll' && closedEvent !== active.id ? active : null;
   const step = currentStep(state);
@@ -291,15 +293,20 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
       <Guide step={step} state={state} locked={locked} act={act} />
 
       {/* 抽選中のお知らせは、ロゴ横の空いている所に重ねて出す（下の表示がずれないように） */}
-      {locked && e && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[150] px-5 py-2 rounded-full bg-[#FF4655] text-white text-sm font-black shadow-[0_6px_20px_rgba(0,0,0,.5)] animate-pulse whitespace-nowrap">
+      {shuffling && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[150] px-5 py-2 rounded-full bg-[#ffd83b] text-[#2b2a3f] text-sm font-black shadow-[0_6px_20px_rgba(0,0,0,.5)] whitespace-nowrap">
+          {shuffling.by}さんがチーム分け中…（OBSで発表中）
+        </div>
+      )}
+      {locked && e && !shuffling && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[150] px-5 py-2 rounded-full bg-[#FF4655] text-white text-sm font-black shadow-[0_6px_20px_rgba(0,0,0,.5)] whitespace-nowrap">
           {e.by}さんが{e.kind === 'map' ? 'マップ' : e.kind === 'team' ? SIDE_LABEL[e.side] : '振り直し'}を抽選中…
         </div>
       )}
 
       <div className="grid gap-3 lg:grid-cols-[minmax(560px,720px)_minmax(0,1fr)] items-start [&>*]:min-w-0">
         <div>
-          <Roster members={state.members} memberId={memberId} owner={state.owner ?? null} act={act} focus={step === 'gather'} started={!!(state.teams.ATK || state.teams.DEF)} />
+          <Roster members={state.members} memberId={memberId} owner={state.owner ?? null} act={act} focus={step === 'gather'} started={!!(state.teams.ATK || state.teams.DEF)} shuffling={!!shuffling} />
           {/* 11/17 本人：回す人以外は、この画面を閉じてよいことを枠の外に薄い赤字で */}
           <p className="text-[13px] mt-2 px-1 leading-relaxed"><span className="text-[#FF4655]/70">参加してOBSの設定が済んだら、代表して回す人以外はこの画面を閉じて大丈夫です。</span><br /><span className="text-white/50">名前やランクを変えるときは、招待リンクからまた開いてください。</span></p>
         </div>
@@ -310,7 +317,7 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
                 focus={step === (side === 'ATK' ? 'atk' : 'def')}
                 rerolling={active?.kind === 'reroll' && active.side === side ? active.index : null}
                 rerollTarget={active?.kind === 'reroll' && active.side === side ? active.target : null}
-                revealing={active?.kind === 'team' && active.side === side} />
+                revealing={active?.kind === 'team' && active.side === side} shuffling={!!shuffling} />
             ))}
           </div>
           <MapPanel state={state} locked={locked} act={act} focus={step === 'map'} spinning={active?.kind === 'map'} />
@@ -373,10 +380,21 @@ function Guide({ step, state, locked, act }: { step: StepKey; state: RoomState; 
       text = n('ATK') > TEAM_SIZE || n('DEF') > TEAM_SIZE
         ? <><b className="text-amber-300">{n('ATK') > TEAM_SIZE ? `ATKが${n('ATK')}人` : ''}{n('ATK') > TEAM_SIZE && n('DEF') > TEAM_SIZE ? '・' : ''}{n('DEF') > TEAM_SIZE ? `DEFが${n('DEF')}人` : ''}</b> います。5人ずつにしてください（今 ATK {n('ATK')}/5・DEF {n('DEF')}/5）。</>
         : <>左の名簿の「ATK・DEF」を押して <b>5人ずつ</b> 振り分けましょう（「ランダムでチーム分け」でもOK）（今 ATK {n('ATK')}/5・DEF {n('DEF')}/5）。</>;
-      action = <button className={btnGhost} onClick={() => randomTeams(!!(state.teams.ATK || state.teams.DEF), act)}>ランダムでチーム分け</button>;
+      action = <>
+        <button className={btnGhost} onClick={() => randomTeams(!!(state.teams.ATK || state.teams.DEF), act)}>ランダムでチーム分け</button>
+        <TeamSetupButton state={state} locked={locked} act={act} />
+      </>;
       break;
     case 'atk':
-      text = <>10人そろいました！まずは <b className="text-[#FF4655]">ATTACKER</b> を回しましょう。</>;
+      if (state.display?.kind !== 'teamSetup') {
+        text = <>10人そろいました！チーム分けを <b className="text-[#ffd83b]">OBSに出して</b> みんなに見せてから、<b className="text-[#FF4655]">ATTACKER</b> を回しましょう。</>;
+        action = <>
+          <TeamSetupButton state={state} locked={locked} act={act} />
+          <button className={`${btnRed} text-base px-6`} disabled={locked} onClick={() => act({ type: 'roll', side: 'ATK' })}>ATTACKERを回す</button>
+        </>;
+        break;
+      }
+      text = <>チーム分けをOBSに表示中。よければ <b className="text-[#FF4655]">ATTACKER</b> を回しましょう。</>;
       action = <button className={`${btnRed} text-base px-6`} disabled={locked} onClick={() => act({ type: 'roll', side: 'ATK' })}>ATTACKERを回す</button>;
       break;
     case 'def':
@@ -438,13 +456,23 @@ const SEAT_ORDER: Seat[] = ['ATK', 'WATCH', 'DEF'];
 const SEAT_ON: Record<Seat, string> = { ATK: 'bg-[#FF4655] text-white', DEF: 'bg-[#46CBFF] text-[#0F1923]', WATCH: 'bg-white/25 text-white' };
 
 /** 名簿：2列。1人ずつ「ATK・観戦・DEF」の3つのボタンで行き先を選ぶ */
+/** 回す前のチーム分け（名前とランク）をOBSに出す。出している間は席を動かすとそのまま映る */
+function TeamSetupButton({ state, locked, act }: { state: RoomState; locked: boolean; act: Act }) {
+  const on = state.display?.kind === 'teamSetup';
+  return (
+    <button className={`${on ? btnGhost : btnYellow} text-base px-5`} disabled={locked || on} onClick={() => act({ type: 'showTeamSetup' })}>
+      {on ? '✓ チーム分けをOBSに表示中' : 'チーム分けをOBSに出す'}
+    </button>
+  );
+}
+
 /** ランダムでチーム分け。縛りガチャを回し始めた後は、押し間違いに備えて確かめる（11/17 本人。文言はほかの確認とそろえる） */
 function randomTeams(started: boolean, act: Act) {
   if (started && !confirm('チーム分けをやり直しますか？\nもう縛りガチャを回し始めています。やり直すと、回した結果はもう一度回し直しが必要になります。')) return;
   act({ type: 'randomTeams' });
 }
 
-function Roster({ members, memberId, owner, act, focus, started }: { members: Member[]; memberId: string; owner: string | null; act: Act; focus: boolean; started: boolean }) {
+function Roster({ members, memberId, owner, act, focus, started, shuffling }: { members: Member[]; memberId: string; owner: string | null; act: Act; focus: boolean; started: boolean; shuffling: boolean }) {
   const count = (seat: Seat) => members.filter(m => m.seat === seat).length;
   const points = (seat: Seat) => teamPoints(members.filter(m => m.seat === seat));
   const iAmOwner = owner === memberId;
@@ -453,7 +481,7 @@ function Roster({ members, memberId, owner, act, focus, started }: { members: Me
       <div className="flex items-center gap-3 mb-2">
         <h3 className="font-black text-lg">参加者 {members.length}人</h3>
         <span className="text-[11px] text-gray-400">押した所の陣営に入る</span>
-        <button className={`${btnYellow} ml-auto text-base px-5 py-2.5`} onClick={() => randomTeams(started, act)}>ランダムでチーム分け</button>
+        <button className={`${btnYellow} ml-auto text-base px-5 py-2.5`} disabled={shuffling} onClick={() => randomTeams(started, act)}>{shuffling ? 'チーム分け中…' : 'ランダムでチーム分け'}</button>
       </div>
       <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-2.5 gap-y-1.5">
         {members.map(m => (
@@ -466,8 +494,8 @@ function Roster({ members, memberId, owner, act, focus, started }: { members: Me
             <RankChip rank={m.rank} size="xs" />
             <span className="inline-flex shrink-0 border border-white/20">
               {SEAT_ORDER.map(seat => (
-                <button key={seat} onClick={() => m.seat !== seat && act({ type: 'seat', memberId: m.id, seat })} aria-pressed={m.seat === seat}
-                  className={`w-[38px] h-8 inline-flex items-center justify-center text-xs font-black ${m.seat === seat ? SEAT_ON[seat] : 'text-white/40 hover:text-white hover:bg-white/10'}`}>
+                <button key={seat} disabled={shuffling} onClick={() => m.seat !== seat && act({ type: 'seat', memberId: m.id, seat })} aria-pressed={!shuffling && m.seat === seat}
+                  className={`w-[38px] h-8 inline-flex items-center justify-center text-xs font-black ${shuffling ? 'text-white/25 animate-pulse' : m.seat === seat ? SEAT_ON[seat] : 'text-white/40 hover:text-white hover:bg-white/10'}`}>
                   {SEAT_LABEL[seat]}
                 </button>
               ))}
@@ -482,11 +510,11 @@ function Roster({ members, memberId, owner, act, focus, started }: { members: Me
           </li>
         ))}
       </ul>
-      <div className="text-[13px] text-gray-300 mt-2">
+      {shuffling ? <div className="text-[13px] text-gray-300 mt-2 animate-pulse">チーム分け中…（OBSの発表が終わると出ます）</div> : <div className="text-[13px] text-gray-300 mt-2">
         <span className={count('ATK') > TEAM_SIZE ? 'text-amber-300 font-bold' : ''}>ATK {count('ATK')}/{TEAM_SIZE}（{points('ATK')}点）</span>・
         <span className={count('DEF') > TEAM_SIZE ? 'text-amber-300 font-bold' : ''}>DEF {count('DEF')}/{TEAM_SIZE}（{points('DEF')}点）</span>・
         観戦 {count('WATCH')}人
-      </div>
+      </div>}
       <p className="text-xs text-gray-400 mt-1">チーム分けは、最高ランクの点数の合計が近くなるように分けます（未設定は{UNRANKED_POINTS}点）{iAmOwner && '／× で名簿から外す（ルームの主だけ）'}</p>
     </section>
   );
@@ -515,8 +543,8 @@ function SlotTools({ member, act, extraBtns }: { member: Member | undefined; act
 
 const toolBtn = 'inline-flex items-center justify-center h-8 px-3 text-xs font-black bg-[#33414d] border border-white/20 hover:bg-[#3d4d5a] disabled:opacity-30';
 
-function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealing, focus }: {
-  side: Side; state: RoomState; locked: boolean; act: Act; rerolling: number | null; rerollTarget: 'agent' | 'bind' | 'extra' | null; revealing: boolean; focus: boolean;
+function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealing, focus, shuffling }: {
+  side: Side; state: RoomState; locked: boolean; act: Act; rerolling: number | null; rerollTarget: 'agent' | 'bind' | 'extra' | null; revealing: boolean; focus: boolean; shuffling: boolean;
 }) {
   const roll = state.teams[side];
   const seated = state.members.filter(m => m.seat === side);
@@ -544,13 +572,15 @@ function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealin
     <section className={panel(focus)}>
       <div className="flex items-center gap-2 mb-2">
         <h3 className={`font-black text-lg italic tracking-wider ${color}`}>{SIDE_LABEL[side]}</h3>
-        <span className="text-xs text-gray-400">{seated.length}/{TEAM_SIZE}人</span>
+        <span className="text-xs text-gray-400">{shuffling ? '？' : seated.length}/{TEAM_SIZE}人</span>
         <button disabled={locked || seated.length !== TEAM_SIZE} onClick={() => act({ type: 'roll', side })}
           className={`${side === 'ATK' ? btnRed : btnBlue} py-1.5 ml-auto`}>
           {roll ? '回し直す' : '回す'}
         </button>
       </div>
-      {roll && revealing ? (
+      {shuffling ? (
+        <div className="bg-[#1f2a33] p-4 text-sm text-gray-300 animate-pulse">チーム分け中…（OBSで発表中。終わるとここに出ます）</div>
+      ) : roll && revealing ? (
         <div className="bg-[#1f2a33] p-4 text-sm text-gray-300 animate-pulse">抽選中…（OBSで発表中。終わるとここに出ます）</div>
       ) : roll ? (
         <ul className="space-y-1">
@@ -608,8 +638,8 @@ function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealin
         </ul>
         </>
       )}
-      {seated.length > TEAM_SIZE && <p className="text-xs text-amber-300 mt-2">{seated.length}人います。5人にすると回せます。</p>}
-      {changed && seated.length <= TEAM_SIZE && <p className="text-xs text-amber-300 mt-2">メンバーが変わっています。回し直すと反映されます。</p>}
+      {!shuffling && seated.length > TEAM_SIZE && <p className="text-xs text-amber-300 mt-2">{seated.length}人います。5人にすると回せます。</p>}
+      {!shuffling && changed && seated.length <= TEAM_SIZE && <p className="text-xs text-amber-300 mt-2">メンバーが変わっています。回し直すと反映されます。</p>}
     </section>
   );
 }
