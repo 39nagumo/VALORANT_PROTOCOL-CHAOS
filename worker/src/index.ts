@@ -15,7 +15,24 @@ export interface Env {
   ALLOWED_ORIGINS: string;
   ROOM_LIMIT_PER_IP_HOUR: string;
   ROOM_LIMIT_PER_DAY: string;
+  SUBMIT_LIMIT_PER_MIN: string;
+  DISCORD_WEBHOOK_URL?: string;
+  NOTICE_WEBHOOK_URL?: string;
 }
+
+// ルームの名簿に入れる人数（試合は10人。残りは観る人）
+const MEMBER_MAX = 20;
+// 1つの接続から送れる操作の数（10秒あたり）。普通に押す分には届かない数
+const OPS_PER_WINDOW = 30;
+const OPS_WINDOW_MS = 10 * 1000;
+// 1回に受け取る文の長さの上限（普通の操作は200字もない）
+const MESSAGE_MAX = 2000;
+
+/** 名前から、見えない文字・向きを変える記号・改行などを取り除く */
+function cleanName(raw: unknown): string {
+  return String(raw ?? '').replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, '').trim().slice(0, NAME_MAX);
+}
+const isSide = (v: unknown): v is Side => v === 'ATK' || v === 'DEF';
 
 // 使い終わったルームは、最後の操作からこの時間で自動的に消える
 const ROOM_TTL_MS = 3 * 24 * 60 * 60 * 1000;
@@ -116,21 +133,25 @@ export class Room extends DurableObject<Env> {
 
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer): Promise<void> {
     if (!this.state || this.closed) return;
+    const text = typeof raw === 'string' ? raw : new TextDecoder().decode(raw);
+    if (text.length > MESSAGE_MAX) return;
     let msg: ClientMessage;
     try {
-      msg = JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw));
+      msg = JSON.parse(text);
     } catch {
       return;
     }
+    if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string') return;
     const att = ws.deserializeAttachment() as Attachment;
     try {
+      if (this.tooFast(ws)) throw new UserError('操作が続いています。少し時間を空けてください');
       if (msg.type === 'join') {
         await this.join(ws, att, msg.name);
       } else {
         if (att.as !== 'page' || !att.memberId) throw new UserError('先にルームへ参加してください');
         const me = this.state.members.find(m => m.id === att.memberId);
         if (!me) throw new UserError('名簿に見つかりません。参加し直してください');
-        await this.handle(msg, me.name);
+        await this.handle(msg, me);
       }
     } catch (e) {
       if (e instanceof UserError) this.sendTo(ws, { type: 'error', message: e.message });
@@ -140,13 +161,25 @@ export class Room extends DurableObject<Env> {
 
   async webSocketClose(ws: WebSocket): Promise<void> {
     const att = ws.deserializeAttachment() as Attachment | null;
+    this.opTimes.delete(ws);
     try { ws.close(); } catch { /* 既に閉じている */ }
     if (att?.as === 'overlay') this.broadcast(ws);
   }
 
+  // 接続ごとの、最近の操作の時刻（休止から戻ると空になるが、それで困ることはない）
+  private opTimes = new Map<WebSocket, number[]>();
+  private tooFast(ws: WebSocket): boolean {
+    const now = Date.now();
+    const times = (this.opTimes.get(ws) ?? []).filter(t => now - t < OPS_WINDOW_MS);
+    if (times.length >= OPS_PER_WINDOW) { this.opTimes.set(ws, times); return true; }
+    times.push(now);
+    this.opTimes.set(ws, times);
+    return false;
+  }
+
   private async join(ws: WebSocket, att: Attachment, rawName: string) {
     const s = this.state!;
-    const name = String(rawName ?? '').trim().slice(0, NAME_MAX);
+    const name = cleanName(rawName);
     if (!name) throw new UserError('名前を入力してください');
     const memberId = await publicIdOf(att.uid);
     const sameName = s.members.find(m => m.name === name && m.id !== memberId);
@@ -159,9 +192,12 @@ export class Room extends DurableObject<Env> {
         s.teams[side]?.slots.forEach(slot => { if (slot.memberId === memberId) slot.name = name; });
       }
     } else {
+      if (s.members.length >= MEMBER_MAX) throw new UserError(`このルームは満員です（${MEMBER_MAX}人まで）`);
       s.members.push({ id: memberId, name, seat: 'WATCH', online: false });
     }
     this.secrets[memberId] = att.uid;
+    // 最初に参加した人（＝ルームを作った人）がルームの主
+    if (!s.owner) s.owner = memberId;
     ws.serializeAttachment({ ...att, memberId } satisfies Attachment);
     // この人のOBSを、このルームに切り替える
     await this.env.USER.getByName(att.uid).setRoom(this.roomId);
@@ -169,14 +205,33 @@ export class Room extends DurableObject<Env> {
     this.save();
   }
 
-  private async handle(msg: Exclude<ClientMessage, { type: 'join' }>, by: string) {
+  private async handle(msg: Exclude<ClientMessage, { type: 'join' }>, me: Member) {
     const s = this.state!;
+    const by = me.name;
+    // 主の仕組みより前に作られたルームは、名簿のいちばん上の人を主にする
+    if (!s.owner && s.members.length) s.owner = s.members[0].id;
     const now = Date.now();
     const busy = () => {
       if (now < s.lockUntil) throw new UserError(`${s.event?.by ?? '誰か'}さんの抽選の演出中です`);
     };
 
+    // 届いた値の形を先に確かめる（画面から普通に送られる値以外は黙って捨てる）
+    if ((msg.type === 'roll' || msg.type === 'reroll') && !isSide(msg.side)) return;
+    if (msg.type === 'reroll' && (!Number.isInteger(msg.index) || msg.index < 0 || msg.index >= TEAM_SIZE || (msg.target !== 'agent' && msg.target !== 'bind'))) return;
+    if ((msg.type === 'seat' && typeof msg.memberId !== 'string') || (msg.type === 'mapMark' && typeof msg.mapId !== 'string')) return;
+    if (msg.type === 'kick' && typeof msg.memberId !== 'string') return;
+
     switch (msg.type) {
+      case 'leave':
+        await this.removeMember(me.id, false);
+        break;
+      case 'kick': {
+        if (s.owner !== me.id) throw new UserError('名簿から外せるのは、ルームの主だけです');
+        if (msg.memberId === me.id) throw new UserError('自分を外すときは「名簿から抜ける」を使ってください');
+        if (!s.members.some(m => m.id === msg.memberId)) throw new UserError('名簿に見つかりません');
+        await this.removeMember(msg.memberId, true);
+        break;
+      }
       case 'seat': {
         const m = s.members.find(x => x.id === msg.memberId);
         if (!m) throw new UserError('名簿に見つかりません');
@@ -279,6 +334,23 @@ export class Room extends DurableObject<Env> {
     this.save();
   }
 
+  /** 名簿から外す（本人が抜ける・主が外す）。チームの抽選結果は残し、回し直すと反映される */
+  private async removeMember(id: string, kicked: boolean) {
+    const s = this.state!;
+    const uid = this.secrets[id];
+    s.members = s.members.filter(m => m.id !== id);
+    delete this.secrets[id];
+    if (s.owner === id) s.owner = s.members[0]?.id ?? null;
+    for (const ws of this.ctx.getWebSockets('page')) {
+      const a = ws.deserializeAttachment() as Attachment | null;
+      if (a?.memberId !== id) continue;
+      ws.serializeAttachment({ ...a, memberId: null } satisfies Attachment);
+      this.sendTo(ws, { type: 'left', kicked });
+    }
+    // この人のOBSは、まだこのルームを映していれば外す
+    if (uid) await this.env.USER.getByName(uid).setRoom(null, this.roomId);
+  }
+
   /** マップのPICK/BANを触ったら、OBSをマップ選びの画面にして印の状態を全員に見せる（演出中は割り込まない） */
   private showMapSetup(by: string) {
     const s = this.state!;
@@ -346,7 +418,7 @@ export class Room extends DurableObject<Env> {
 
 /** 1人（1つのOBS用URL）ごとの「今どのルームにいるか」。OBSの表示はここを見て自動で切り替わる */
 export class UserHub extends DurableObject<Env> {
-  async setRoom(roomId: string, onlyIf?: string): Promise<void> {
+  async setRoom(roomId: string | null, onlyIf?: string): Promise<void> {
     if (onlyIf !== undefined && (await this.ctx.storage.get<string>('room')) !== onlyIf) return;
     await this.ctx.storage.put('room', roomId);
     for (const ws of this.ctx.getWebSockets()) ws.send(JSON.stringify({ type: 'room', roomId }));
@@ -390,14 +462,86 @@ export class Limiter extends DurableObject<Env> {
   }
 }
 
-function cors(request: Request, env: Env): Record<string, string> {
+const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\])$/;
+
+/** うちのサイト（本番・プレビュー）から来たか。手元の開発（wrangler dev）では見ない */
+function originOk(request: Request, env: Env): boolean {
+  if (LOCAL_HOST.test(new URL(request.url).hostname)) return true;
   const origin = request.headers.get('Origin') ?? '';
   const allowed = env.ALLOWED_ORIGINS.split(',').map(s => s.trim());
-  return allowed.includes(origin) || PREVIEW_ORIGIN.test(origin) ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' } : {};
+  return allowed.includes(origin) || PREVIEW_ORIGIN.test(origin);
+}
+
+function cors(request: Request, env: Env): Record<string, string> {
+  const origin = request.headers.get('Origin') ?? '';
+  return origin && originOk(request, env) ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' } : {};
+}
+
+async function postDiscord(url: string, payload: unknown): Promise<boolean> {
+  try {
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** サイト全体の上限に達したことを、1日1回だけ Discord に知らせる */
+async function noticeDailyLimit(env: Env): Promise<void> {
+  const url = env.NOTICE_WEBHOOK_URL || env.DISCORD_WEBHOOK_URL;
+  if (!url) return;
+  const once = await env.LIMITER.getByName('notice:daily-limit').hit(1, 24 * 60 * 60 * 1000);
+  if (!once.ok) return;
+  await postDiscord(url, {
+    allowed_mentions: { parse: [] },
+    embeds: [{
+      title: '⚠️ 上限に達しました：ルーム作成（サイト全体・1日）',
+      description: `ここ24時間で ${env.ROOM_LIMIT_PER_DAY} 個のルームが作られ、新しいルームを作れない状態です。\nいたずらでなければ、worker/wrangler.jsonc の ROOM_LIMIT_PER_DAY を上げて出し直してください。`,
+      color: 0xef4444,
+      timestamp: new Date().toISOString(),
+    }],
+  });
+}
+
+// 縛りアイデアの投稿（Discord へ中継する）
+const BIND_COLORS: Record<string, number> = {
+  CHAOS: 0xef4444, Epic: 0xa855f7, Exotic: 0x22c55e, Extra: 0xeab308, Unique: 0xec4899, Special: 0x22d3ee,
+};
+const BIND_TEXT_MAX = 500;
+
+async function submitBind(request: Request, env: Env): Promise<Response> {
+  const headers = cors(request, env);
+  if (!originOk(request, env)) return Response.json({ error: 'forbidden' }, { status: 403, headers });
+  if (!env.DISCORD_WEBHOOK_URL) return Response.json({ error: 'not_configured' }, { status: 503, headers });
+  const body = await request.json().catch(() => ({})) as { category?: unknown; text?: unknown };
+  const category = typeof body.category === 'string' ? body.category : '';
+  // 改行とタブは残し、そのほかの見えない文字は取り除く
+  const text = typeof body.text === 'string' ? body.text.replace(/[^\P{Cc}\n\t]|\p{Cf}/gu, '').trim() : '';
+  if (!(category in BIND_COLORS)) return Response.json({ error: 'bad_category' }, { status: 400, headers });
+  if (!text || text.length > BIND_TEXT_MAX) return Response.json({ error: 'bad_text' }, { status: 400, headers });
+
+  const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+  const limit = await env.LIMITER.getByName(`submit:${ip}`).hit(Number(env.SUBMIT_LIMIT_PER_MIN) || 3, 60 * 1000);
+  if (!limit.ok) return Response.json({ error: 'too_many' }, { status: 429, headers });
+
+  const ok = await postDiscord(env.DISCORD_WEBHOOK_URL, {
+    allowed_mentions: { parse: [] }, // @everyone やロールへのメンションを無効化
+    embeds: [{
+      title: '📌 新しい縛りアイデアの投稿',
+      color: BIND_COLORS[category],
+      fields: [
+        { name: 'レアリティ', value: category, inline: true },
+        { name: '内容', value: text },
+      ],
+      footer: { text: 'Protocol Archive Suggestion' },
+      timestamp: new Date().toISOString(),
+    }],
+  });
+  return ok ? Response.json({ ok: true }, { headers }) : Response.json({ error: 'discord' }, { status: 502, headers });
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const parts = url.pathname.split('/').filter(Boolean); // ['rs', ...]
     if (parts[0] !== 'rs') return new Response('not found', { status: 404 });
@@ -406,17 +550,25 @@ export default {
       return new Response(null, { headers: { ...cors(request, env), 'Access-Control-Allow-Methods': 'POST', 'Access-Control-Allow-Headers': 'Content-Type' } });
     }
 
+    // POST /rs/submit → 縛りアイデアを Discord へ送る
+    if (parts[1] === 'submit' && parts.length === 2 && request.method === 'POST') {
+      return submitBind(request, env);
+    }
+
     // POST /rs/rooms → 新しいルームを作る
     if (parts[1] === 'rooms' && parts.length === 2 && request.method === 'POST') {
-      // 同じ回線（IP）から1時間に5個まで、サイト全体で1日700個まで（無料枠の1日10万リクエストに収まる目安）
+      if (!originOk(request, env)) return Response.json({ error: 'forbidden' }, { status: 403 });
+      // 同じ回線（IP）から1時間に10個まで、サイト全体で1日700個まで（無料枠の1日10万リクエストに収まる目安）
       const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
-      const perIp = await env.LIMITER.getByName(`ip:${ip}`).hit(Number(env.ROOM_LIMIT_PER_IP_HOUR) || 5, 60 * 60 * 1000);
+      const perIpLimit = Number(env.ROOM_LIMIT_PER_IP_HOUR) || 10;
+      const perIp = await env.LIMITER.getByName(`ip:${ip}`).hit(perIpLimit, 60 * 60 * 1000);
       if (!perIp.ok) {
-        return Response.json({ error: 'too_many', retryAfterMin: Math.ceil(perIp.retryAfterMs / 60000) }, { status: 429, headers: cors(request, env) });
+        return Response.json({ error: 'too_many' }, { status: 429, headers: cors(request, env) });
       }
       const total = await env.LIMITER.getByName('all').hit(Number(env.ROOM_LIMIT_PER_DAY) || 700, 24 * 60 * 60 * 1000);
       if (!total.ok) {
-        return Response.json({ error: 'busy', retryAfterMin: Math.ceil(total.retryAfterMs / 60000) }, { status: 429, headers: cors(request, env) });
+        ctx.waitUntil(noticeDailyLimit(env));
+        return Response.json({ error: 'busy' }, { status: 429, headers: cors(request, env) });
       }
       const roomId = newRoomId();
       await env.ROOM.getByName(roomId).init(roomId);
@@ -424,6 +576,8 @@ export default {
     }
 
     const isWs = request.headers.get('Upgrade') === 'websocket';
+    // ルームとOBS表示へつなげるのは、うちのサイトから開いたページだけ
+    if (isWs && !originOk(request, env)) return new Response('forbidden', { status: 403 });
     // GET /rs/room/:id?uid=...&as=page|overlay
     if (parts[1] === 'room' && parts[2] && isWs) {
       if (!ROOM_PATTERN.test(parts[2])) return new Response('bad room', { status: 400 });

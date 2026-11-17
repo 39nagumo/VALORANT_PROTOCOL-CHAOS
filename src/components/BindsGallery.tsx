@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from "react-router-dom";
 import bindsRaw from '../data/binds.json';
+import { isNewBind } from '../data/bindsNew';
 // @ts-ignore
 import html2canvas from 'html2canvas';
 
@@ -111,9 +112,12 @@ export function BindsGallery({ onBack, onNavigateToSubmit }: Props) {
                                         <div
                                             key={i}
                                             onClick={() => setSelectedBind({ text, category: cat, id: bindId })}
-                                            className="bg-[#1F2631] p-4 rounded border border-transparent hover:border-white/20 hover:bg-[#2C3545] cursor-pointer transition-all active:scale-95 flex justify-between items-start gap-4"
+                                            className={`relative bg-[#1F2631] p-4 rounded border hover:border-white/20 hover:bg-[#2C3545] cursor-pointer transition-all active:scale-95 flex justify-between items-start gap-4 ${isNewBind(cat, i) ? 'border-[#46CBFF]/50 pr-16' : 'border-transparent'}`}
                                         >
                                             <p className="text-sm font-medium leading-relaxed">{text}</p>
+                                            {isNewBind(cat, i) && (
+                                                <span className="absolute top-2 right-2 inline-flex items-center justify-center h-5 px-2 pb-[2px] rounded-full bg-[#46CBFF] text-[#0F1923] text-[11px] font-black leading-none">NEW</span>
+                                            )}
                                         </div>
                                     );
                                 })}

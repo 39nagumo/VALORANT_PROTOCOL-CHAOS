@@ -22,14 +22,42 @@ export async function createRoom(): Promise<string> {
     throw new Error('ルームを作れませんでした。通信を確認して、もう一度お試しください。');
   }
   if (res.status === 429) {
+    // 何個・何分といった数字は出さない（いたずらの手がかりになるため）
     const body = await res.json().catch(() => ({}));
-    const min = body.retryAfterMin ?? 60;
     throw new Error(body.error === 'busy'
-      ? `今日はルームがたくさん作られたため、いったん受付を止めています（約${min}分後に再開）。`
-      : `ルームを作れるのは1時間に5個までです。約${min}分後にもう一度お試しください。`);
+      ? 'ただいまルームの受付を止めています。時間を空けてから、もう一度お試しください。'
+      : '続けてルームが作られています。時間を空けてから、もう一度お試しください。');
   }
   if (!res.ok) throw new Error('ルームを作れませんでした。時間をおいてもう一度お試しください。');
   return (await res.json()).roomId;
+}
+
+/** 縛りアイデアを送る。送れなかったときは、画面にそのまま出せる理由を投げる */
+export async function submitBind(category: string, text: string): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`${SERVER}/rs/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category, text }),
+    });
+  } catch {
+    throw new Error('送れませんでした。通信を確認して、もう一度お試しください。');
+  }
+  // 同期サーバーに送り先がまだ登録されていない間は、今までの Vercel の口を使う
+  if (res.status === 503) {
+    try {
+      res = await fetch('/api/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, text }),
+      });
+    } catch {
+      throw new Error('送れませんでした。通信を確認して、もう一度お試しください。');
+    }
+  }
+  if (res.status === 429) throw new Error('続けて送られています。少し時間を空けてから、もう一度お試しください。');
+  if (!res.ok) throw new Error('送れませんでした。時間をおいて、もう一度お試しください。');
 }
 
 type Status = 'connecting' | 'open' | 'closed';
@@ -110,6 +138,10 @@ export function useRoom(roomId: string | null, uid: string, as: 'page' | 'overla
         break;
       }
       case 'joined': setMemberId(msg.memberId); break;
+      case 'left':
+        setMemberId(null);
+        setError(msg.kicked ? 'ルームの主によって、名簿から外されました。' : '名簿から抜けました。');
+        break;
       case 'error': setError(msg.message); break;
       case 'moved': markFinal(); setMovedTo(msg.roomId); break;
       case 'closed': markFinal(); setClosed(true); break;

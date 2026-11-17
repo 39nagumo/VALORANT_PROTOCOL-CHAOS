@@ -18,8 +18,13 @@
     // 本番でルームを作れるサイトのオリジン（カンマ区切り）。ローカルは Vite のプロキシ経由なので不要
     "ALLOWED_ORIGINS": "https://valorant-protocol-chaos.vercel.app",
     // ルームを作れる数の上限（無料枠を使い切られないための保険。有料プランにしたら1日の上限は上げてよい）
-    "ROOM_LIMIT_PER_IP_HOUR": "5",
-    "ROOM_LIMIT_PER_DAY": "700"
+    "ROOM_LIMIT_PER_IP_HOUR": "10",
+    "ROOM_LIMIT_PER_DAY": "700",
+    // 縛りの投稿は、同じ回線から1分にこの回数まで
+    "SUBMIT_LIMIT_PER_MIN": "3"
+    // 秘密の値（wrangler secret put で入れる。ここには書かない）
+    //   DISCORD_WEBHOOK_URL … 縛りの投稿と、全体の上限に達したときのお知らせの送り先
+    //   NOTICE_WEBHOOK_URL  … お知らせだけ別のチャンネルに送りたいとき（無ければ上と同じ所）
   },
   "observability": { "enabled": true }
 }

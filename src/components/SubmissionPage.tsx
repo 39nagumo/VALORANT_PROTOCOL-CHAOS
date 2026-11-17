@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from "react-router-dom";
+import { submitBind } from '../room/connection';
 
 interface Props {
     onBack: () => void;
@@ -11,6 +12,8 @@ export function SubmissionPage({ onBack }: Props) {
     const [text, setText] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
+    const [sentText, setSentText] = useState('');
+    const [error, setError] = useState('');
 
     const getCategoryStyles = (cat: string) => {
         switch (cat) {
@@ -29,27 +32,56 @@ export function SubmissionPage({ onBack }: Props) {
         if (!text.trim() || isSubmitting) return;
 
         setIsSubmitting(true);
+        setError('');
 
         try {
-            const response = await fetch("/api/submit", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ category, text })
-            });
-
-            if (response.ok) {
-                setIsSuccess(true);
-                setText('');
-                setTimeout(() => setIsSuccess(false), 5000);
-            } else {
-                alert("送信に失敗しました。時間をおいて再度お試しください。");
-            }
-        } catch (error) {
-            alert("通信エラーが発生しました。");
+            await submitBind(category, text);
+            setSentText(text.trim());
+            setText('');
+            setIsSuccess(true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (err) {
+            setError(err instanceof Error ? err.message : '送れませんでした。時間をおいて、もう一度お試しください。');
         } finally {
             setIsSubmitting(false);
         }
     };
+
+    // 送れたら、入力欄の代わりに「届きました」をはっきり出す（消えない）
+    if (isSuccess) {
+        return (
+            <div className="animate-fade-in max-w-4xl mx-auto pb-4 px-4">
+                <div className="border-l-[6px] border-[#FF4655] pl-8 mb-12 mt-16">
+                    <h2 className="text-3xl md:text-4xl font-black uppercase italic tracking-tighter leading-none">
+                        Suggest a <span className="text-[#FF4655]">Bind</span>
+                    </h2>
+                </div>
+                <div className="bg-black/40 p-8 md:p-12 border border-cyan-400/40 rounded-sm shadow-2xl backdrop-blur-sm text-center">
+                    <p className="text-cyan-300 text-2xl md:text-3xl font-black">✓ 送信しました</p>
+                    <p className="mt-4 text-white/80 text-sm md:text-base">縛りのアイデアを受け取りました。ありがとうございます！</p>
+                    <p className="mt-6 text-left whitespace-pre-wrap break-words bg-black/50 border border-white/10 p-4 text-white/70 text-sm">
+                        <span className="text-white/40 text-xs font-bold mr-2">[{category}]</span>{sentText}
+                    </p>
+                    <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+                        <button
+                            type="button"
+                            onClick={() => setIsSuccess(false)}
+                            className="px-8 py-4 bg-white text-black text-sm font-black tracking-widest hover:bg-[#FF4655] hover:text-white transition-colors"
+                        >
+                            もう1件送る
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => navigate("/")}
+                            className="px-8 py-4 border border-white/30 text-white/80 text-sm font-black tracking-widest hover:border-white hover:text-white transition-colors"
+                        >
+                            トップへ戻る
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         /* ✅ pb-20 を pb-4 に変更して、コンテナの下側の余白を最小限に */
@@ -109,17 +141,17 @@ export function SubmissionPage({ onBack }: Props) {
                     type="submit"
                     disabled={isSubmitting}
                     className={`w-full py-6 text-sm font-black uppercase tracking-[0.6em] transition-all ${
-                        isSubmitting 
-                        ? 'bg-gray-800 text-gray-500 cursor-wait' 
+                        isSubmitting
+                        ? 'bg-gray-800 text-gray-300'
                         : 'bg-white text-black hover:bg-[#FF4655] hover:text-white shadow-[0_0_30px_rgba(255,255,255,0.1)] active:scale-[0.99]'
                     }`}
                 >
-                    {isSubmitting ? 'Transmitting...' : 'Send to Archive'}
+                    {isSubmitting ? '送信中…' : 'Send to Archive'}
                 </button>
 
-                {isSuccess && (
-                    <p className="mt-6 text-center text-cyan-400 text-sm font-black animate-pulse tracking-[0.3em] uppercase">
-                        Submission Received. Thank you, Agent.
+                {error && (
+                    <p role="alert" className="mt-2 text-center text-[#FF6B76] text-sm font-bold">
+                        {error}
                     </p>
                 )}
             </form>

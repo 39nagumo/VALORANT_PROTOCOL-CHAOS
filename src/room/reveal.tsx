@@ -51,7 +51,7 @@ export function bindBlocks(text: string): string[] {
     const line = raw.trim();
     if (!line) continue;
     const prev = blocks[blocks.length - 1];
-    const startsNew = /^[※（(【[]/.test(line);
+    const startsNew = /^[※（(【[『]/.test(line);
     const prevEnds = prev !== undefined && /[。！!？?】』]$/.test(prev);
     if (prev === undefined || startsNew || prevEnds) blocks.push(line);
     else blocks[blocks.length - 1] = prev + line;

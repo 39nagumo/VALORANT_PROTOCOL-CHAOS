@@ -27,5 +27,6 @@
   { "name": "ウェイレイ", "role": "Duelist", "image": "/public/agents/04_Waylay.jpg" },
   { "name": "テホ", "role": "Initiator", "image": "/public/agents/15_Tejo.jpg" },
   { "name": "ヴィトー", "role": "Sentinel", "image": "/public/agents/28_Veto.jpg" },
-  { "name": "ミクス", "role": "Controller", "image": "/public/agents/29_Miks.jpg" }
+  { "name": "ミクス", "role": "Controller", "image": "/public/agents/29_Miks.jpg" },
+  { "name": "ハッシュ", "role": "Duelist", "image": "/public/agents/30_Hush.jpg" }
 ]

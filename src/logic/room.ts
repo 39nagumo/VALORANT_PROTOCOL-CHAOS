@@ -48,6 +48,8 @@ export interface RoomState {
   /** OBSに出し続けている画面（抽選結果か、マップ選びの途中）。誰かが閉じるまで残る */
   display: RoomDisplay | null;
   lockUntil: number;
+  /** ルームの主（最初に参加した人＝作った人）の公開ID。主だけが人を名簿から外せる */
+  owner?: string | null;
 }
 
 // 演出の長さ（ミリ秒）。サーバーはこの間ほかの抽選を受け付けない
@@ -76,14 +78,17 @@ export type ClientMessage =
   | { type: 'mapClearHistory' }
   | { type: 'closeDisplay' }
   | { type: 'newMatch' }
-  | { type: 'regenerate' };
+  | { type: 'regenerate' }
+  | { type: 'leave' }
+  | { type: 'kick'; memberId: string };
 
 export type ServerMessage =
   | { type: 'state'; state: RoomState; now: number }
   | { type: 'joined'; memberId: string }
   | { type: 'error'; message: string }
   | { type: 'moved'; roomId: string }
-  | { type: 'closed' };
+  | { type: 'closed' }
+  | { type: 'left'; kicked: boolean };
 
 /** ブラウザ（またはOBS）ごとの秘密のID。OBS用URLの末尾になる */
 export const UID_PATTERN = /^[a-z0-9]{16,40}$/;
