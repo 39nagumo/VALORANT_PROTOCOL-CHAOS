@@ -8,18 +8,12 @@ import {
 } from '../logic/room';
 import { addDummyMembers, createRoom, useRoom, useServerNow } from './connection';
 import { adoptUid, getSavedName, getSavedRank, getUid, overlayUrl, saveName, saveRank } from './identity';
-import { MapReveal, RarityBadge, ROLE_LABEL, SIDE_LABEL, Stage, TeamReveal } from './reveal';
+import { MapReveal, RARITY_COLOR, SIDE_LABEL, Stage, TeamReveal } from './reveal';
 import { RoleIcon } from './RoleIcon';
 import { HowToModal } from './HowToModal';
 import type { BindRarity } from '../logic/gacha';
 import { RankChip } from './RankChip';
 
-const SEAT_NEXT: Record<Seat, Seat> = { WATCH: 'ATK', ATK: 'DEF', DEF: 'WATCH' };
-const SEAT_STYLE: Record<Seat, string> = {
-  ATK: 'bg-[#FF4655]/25 text-[#ffb3ba] border-[#FF4655]/50',
-  DEF: 'bg-[#46CBFF]/20 text-[#b5ecff] border-[#46CBFF]/50',
-  WATCH: 'text-white/45 border-white/20',
-};
 const SEAT_LABEL: Record<Seat, string> = { ATK: 'ATK', DEF: 'DEF', WATCH: '観戦' };
 const SHOW_REVEAL_KEY = 'chaos-gacha:page-reveal';
 
@@ -232,7 +226,8 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
   return (
     <div className="w-full">
       {/* 上の帯：URLは画面に出さない（配信に映ってもいいように） */}
-      <div className="flex flex-wrap items-center gap-3 mb-3 bg-[#172129]/90 border border-white/10 px-4 py-2">
+      <div className="flex flex-wrap items-center gap-3 mb-2 bg-[#172129]/90 border border-white/10 px-3 py-1.5">
+        <a href="/" aria-label="トップへ" className="shrink-0"><img src="/assets/CHAOS_fix.png" alt="CHAOSガチャ" className="h-9 w-auto" /></a>
         <span className="text-xs font-black tracking-[0.3em] text-gray-400">ROOM</span>
         <span className={`w-2.5 h-2.5 rounded-full ${room.status === 'open' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`}
           title={room.status === 'open' ? '接続中' : '再接続中'} />
@@ -280,12 +275,12 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
 
       {/* OBSは「最後に参加したルーム」を映すので、別のルームを開いていると映らない。気づけるように知らせる */}
       {me && !me.online && (
-        <div className="mb-3 flex flex-wrap items-center gap-3 px-4 py-2 bg-[#46CBFF]/10 border border-[#46CBFF]/40 text-sm">
+        <div className="mb-2 flex flex-wrap items-center gap-3 px-3 py-1 bg-[#46CBFF]/10 border border-[#46CBFF]/40 text-sm">
           <span>
             <b className="text-[#46CBFF]">あなたのOBSはこのルームを映していません。</b>
             別のルームを表示中か、OBSが起動していません（OBSを使わない人はそのままでOKです）。
           </span>
-          <button className={`${btnBlue} ml-auto py-1`} onClick={() => act({ type: 'join', uid, name: me.name })}>
+          <button className={`${btnBlue} ml-auto py-0.5 text-xs`} onClick={() => act({ type: 'join', uid, name: me.name })}>
             OBSをこのルームに切り替える
           </button>
         </div>
@@ -300,14 +295,16 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
         </div>
       )}
 
-      <div className="grid gap-3 lg:grid-cols-[240px_1fr_1fr] 2xl:grid-cols-[240px_1fr_1fr_340px]">
+      <div className="grid gap-3 lg:grid-cols-[minmax(480px,600px)_minmax(0,1fr)] items-start [&>*]:min-w-0">
         <Roster members={state.members} memberId={memberId} owner={state.owner ?? null} act={act} focus={step === 'gather'} />
-        {(['ATK', 'DEF'] as Side[]).map(side => (
-          <TeamPanel key={side} side={side} state={state} locked={locked} act={act}
-            focus={step === (side === 'ATK' ? 'atk' : 'def')}
-            rerolling={active?.kind === 'reroll' && active.side === side ? active.index : null} />
-        ))}
-        <div className="lg:col-span-3 2xl:col-span-1">
+        <div className="grid gap-3 [&>*]:min-w-0">
+          <div className="grid gap-3 md:grid-cols-2 items-start [&>*]:min-w-0">
+            {(['ATK', 'DEF'] as Side[]).map(side => (
+              <TeamPanel key={side} side={side} state={state} locked={locked} act={act}
+                focus={step === (side === 'ATK' ? 'atk' : 'def')}
+                rerolling={active?.kind === 'reroll' && active.side === side ? active.index : null} />
+            ))}
+          </div>
           <MapPanel state={state} locked={locked} act={act} focus={step === 'map'} />
         </div>
       </div>
@@ -367,7 +364,7 @@ function Guide({ step, state, locked, act }: { step: StepKey; state: RoomState; 
     case 'gather':
       text = n('ATK') > TEAM_SIZE || n('DEF') > TEAM_SIZE
         ? <><b className="text-amber-300">{n('ATK') > TEAM_SIZE ? `ATKが${n('ATK')}人` : ''}{n('ATK') > TEAM_SIZE && n('DEF') > TEAM_SIZE ? '・' : ''}{n('DEF') > TEAM_SIZE ? `DEFが${n('DEF')}人` : ''}</b> います。5人ずつにしてください（今 ATK {n('ATK')}/5・DEF {n('DEF')}/5）。</>
-        : <>左の名簿で <b>ATK と DEF に5人ずつ</b> 振り分けましょう（今 ATK {n('ATK')}/5・DEF {n('DEF')}/5）。</>;
+        : <>左の名簿の「ATK・DEF」を押して <b>5人ずつ</b> 振り分けましょう（「ランダムでチーム分け」でもOK）（今 ATK {n('ATK')}/5・DEF {n('DEF')}/5）。</>;
       action = <button className={btnGhost} onClick={() => act({ type: 'randomTeams' })}>ランダムでチーム分け</button>;
       break;
     case 'atk':
@@ -383,7 +380,7 @@ function Guide({ step, state, locked, act }: { step: StepKey; state: RoomState; 
         text = <>DEFENDERも確認できたら、<b className="text-[#ffd83b]">マップ候補</b> をOBSに出してみんなで決めましょう。</>;
         action = <button className={`${btnYellow} text-base px-6`} disabled={locked} onClick={() => act({ type: 'showMapSetup' })}>マップ候補をOBSに出す</button>;
       } else {
-        text = <>右の <b className="text-[#ffd83b]">MAP</b> で、②選び方（BAN＝外す／PICK＝ここから選ぶ）→ ③マップを押して印 → ④回す。印は全員のOBSにそのまま映ります。</>;
+        text = <>右下の <b className="text-[#ffd83b]">MAP</b> で BAN／PICK を選び、マップを押して印 → 「マップを回す」。印は全員のOBSにそのまま映ります。</>;
         action = <button className={`${btnYellow} text-base px-6`} disabled={locked || pool === 0} onClick={() => act({ type: 'mapRoll' })}>マップを回す（{pool}）</button>;
       }
       break;
@@ -400,12 +397,11 @@ function Guide({ step, state, locked, act }: { step: StepKey; state: RoomState; 
   }
 
   return (
-    <div className="mb-3 bg-[#172129]/90 border border-[#ffd83b]/40 px-4 py-3">
-      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-      <ol className="flex flex-wrap items-center gap-2">
+    <div className="mb-2 bg-[#172129]/90 border border-[#ffd83b]/40 px-3 py-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+      <ol className="flex flex-wrap items-center gap-1.5">
         {STEPS.map((s, i) => (
           <li key={s.key} className="flex items-center gap-2">
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border ${
+            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black border ${
               i < doneIndex ? 'border-emerald-400/50 text-emerald-300 bg-emerald-400/10'
                 : i === doneIndex ? 'border-[#ffd83b] text-[#2b2a3f] bg-[#ffd83b]'
                 : 'border-white/15 text-white/40'}`}>
@@ -415,11 +411,9 @@ function Guide({ step, state, locked, act }: { step: StepKey; state: RoomState; 
           </li>
         ))}
       </ol>
-        <span className="text-xs text-gray-500">操作は代表1人でOK</span>
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[320px]">
         <span className="text-[#ffd83b] font-black text-sm">▶ 次にやること</span>
-        <span className="text-sm leading-relaxed flex-1 min-w-[280px]">{text}</span>
+        <span className="text-sm leading-snug flex-1 min-w-[240px]">{text}<span className="text-xs text-gray-500 ml-2">操作は代表1人でOK</span></span>
         {action}
         {state.display && step !== 'start' && (
           <button className="text-xs text-gray-400 hover:text-white underline" onClick={() => act({ type: 'closeDisplay' })}>OBSの結果画面を閉じる</button>
@@ -432,71 +426,80 @@ function Guide({ step, state, locked, act }: { step: StepKey; state: RoomState; 
 const panel = (focus: boolean) =>
   `bg-[#172129]/90 border p-3 flex flex-col ${focus ? 'border-[#ffd83b]/70 shadow-[0_0_0_1px_rgba(255,216,59,.35)]' : 'border-white/10'}`;
 
+const SEAT_ORDER: Seat[] = ['ATK', 'WATCH', 'DEF'];
+const SEAT_ON: Record<Seat, string> = { ATK: 'bg-[#FF4655] text-white', DEF: 'bg-[#46CBFF] text-[#0F1923]', WATCH: 'bg-white/25 text-white' };
+
+/** 名簿：2列。1人ずつ「ATK・観戦・DEF」の3つのボタンで行き先を選ぶ */
 function Roster({ members, memberId, owner, act, focus }: { members: Member[]; memberId: string; owner: string | null; act: Act; focus: boolean }) {
   const count = (seat: Seat) => members.filter(m => m.seat === seat).length;
   const points = (seat: Seat) => teamPoints(members.filter(m => m.seat === seat));
   const iAmOwner = owner === memberId;
-  // 縛りの指定を開いている人
-  const [openId, setOpenId] = useState<string | null>(null);
   return (
     <section className={panel(focus)}>
-      <div className="flex items-baseline justify-between mb-1">
-        <h3 className="font-black tracking-wider">参加者 {members.length}人</h3>
-        <span className="text-[11px] text-gray-500">● OBS起動中</span>
+      <div className="flex items-center gap-3 mb-2">
+        <h3 className="font-black text-lg">参加者 {members.length}人</h3>
+        <span className="text-[11px] text-gray-400">押した所の陣営に入る</span>
+        <button className={`${btnYellow} ml-auto text-base px-5 py-2.5`} onClick={() => act({ type: 'randomTeams' })}>ランダムでチーム分け</button>
       </div>
-      <p className="text-[11px] text-gray-500 mb-2">右のボタンで ATK → DEF → 観戦／「縛」で縛りの指定{iAmOwner && <><br />× で名簿から外す（ルームの主だけ）</>}</p>
-      <ul className="overflow-y-auto max-h-[420px] pr-1">
+      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-1">
         {members.map(m => (
-          <li key={m.id} className={`py-1.5 border-b border-white/5 text-sm ${m.seat === 'WATCH' ? 'text-white/50' : ''}`}>
-           <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full shrink-0 ${m.online ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-white/15'}`} />
-            <span className="truncate font-bold">
-              {m.id === owner && <span className="text-[#ffd83b] mr-1" title="ルームの主">★</span>}
-              {m.name}{m.id === memberId && <span className="text-[11px] text-gray-500 font-normal ml-1">（あなた）</span>}
+          <li key={m.id} className={`flex items-center gap-1.5 h-[30px] px-1.5 bg-[#1f2a33] border border-white/5 text-sm ${m.seat === 'WATCH' ? 'text-white/60' : ''}`}>
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${m.online ? 'bg-emerald-400' : 'bg-white/15'}`} title={m.online ? 'OBS起動中' : ''} />
+            <span className="truncate font-bold min-w-0 flex-1">
+              {m.id === owner && <span className="text-[#ffd83b] mr-0.5" title="ルームの主">★</span>}
+              {m.name}{m.id === memberId && <span className="text-[10px] text-gray-400 font-normal ml-1">あなた</span>}
             </span>
-            <button onClick={() => act({ type: 'seat', memberId: m.id, seat: SEAT_NEXT[m.seat] })}
-              className={`ml-auto shrink-0 w-12 text-[11px] font-black py-0.5 border ${SEAT_STYLE[m.seat]}`}>{SEAT_LABEL[m.seat]}</button>
-            <button onClick={() => setOpenId(openId === m.id ? null : m.id)} title="縛りの指定・2つ目の縛り" aria-expanded={openId === m.id}
-              className={`shrink-0 w-6 h-5 inline-flex items-center justify-center text-[11px] font-black border ${openId === m.id || m.bindPick || m.extraRarity ? 'border-[#ffd83b] text-[#ffd83b]' : 'border-white/20 text-white/50 hover:text-white'}`}>縛</button>
-            {iAmOwner && (m.id === memberId ? <span className="shrink-0 w-5" /> : (
+            <RankChip rank={m.rank} size="xs" />
+            <span className="inline-flex shrink-0 border border-white/20">
+              {SEAT_ORDER.map(seat => (
+                <button key={seat} onClick={() => m.seat !== seat && act({ type: 'seat', memberId: m.id, seat })} aria-pressed={m.seat === seat}
+                  className={`w-7 h-5 inline-flex items-center justify-center text-[10px] font-black ${m.seat === seat ? SEAT_ON[seat] : 'text-white/40 hover:text-white hover:bg-white/10'}`}>
+                  {SEAT_LABEL[seat]}
+                </button>
+              ))}
+            </span>
+            {iAmOwner && (m.id === memberId ? <span className="shrink-0 w-4" /> : (
               <button title={`${m.name}さんを名簿から外す`} aria-label={`${m.name}さんを名簿から外す`}
                 onClick={() => {
                   if (confirm(`「${m.name}」さんを名簿から外しますか？\nチームの席も外れます（本人はもう一度参加すれば戻れます）。`)) act({ type: 'kick', memberId: m.id });
                 }}
-                className="shrink-0 w-5 h-5 inline-flex items-center justify-center text-white/40 hover:text-[#FF4655] hover:bg-white/5 text-sm leading-none">×</button>
+                className="shrink-0 w-4 h-5 inline-flex items-center justify-center text-white/40 hover:text-[#FF4655] text-sm leading-none">×</button>
             ))}
-           </div>
-           {/* 指定があれば、名前の下に札で出す */}
-           <div className="flex flex-wrap items-center gap-1 mt-1 pl-4 text-[10px] text-gray-400">
-             <RankChip rank={m.rank} size="xs" />
-             {m.bindPick && <><span className="ml-1">指定</span><RarityBadge rarity={m.bindPick} size="sm" /></>}
-             {m.extraRarity && <><span className="ml-1">＋2つ目</span><RarityBadge rarity={m.extraRarity} size="sm" /></>}
-           </div>
-           {openId === m.id && (
-             <div className="mt-1.5 ml-4 p-2 bg-black/30 border border-white/10 grid gap-1.5 text-[11px]">
-               <label className="flex items-center gap-2">
-                 <span className="w-16 shrink-0 text-gray-400">縛りの指定</span>
-                 <RaritySelect value={m.bindPick ?? null} onChange={r => act({ type: 'bindPick', memberId: m.id, rarity: r })} />
-               </label>
-               <label className="flex items-center gap-2">
-                 <span className="w-16 shrink-0 text-gray-400">2つ目</span>
-                 <RaritySelect value={m.extraRarity ?? null} onChange={r => act({ type: 'extraBind', memberId: m.id, rarity: r })} />
-               </label>
-               <p className="text-[10px] text-gray-500 leading-snug">指定したレア度から抽選します。抽選のあとに変えると、その人の縛りを入れ替えます。</p>
-             </div>
-           )}
           </li>
         ))}
       </ul>
-      <div className="text-[11px] text-gray-500 mt-2">
+      <div className="text-[11px] text-gray-400 mt-2">
         <span className={count('ATK') > TEAM_SIZE ? 'text-amber-300 font-bold' : ''}>ATK {count('ATK')}/{TEAM_SIZE}（{points('ATK')}点）</span>・
-        <span className={count('DEF') > TEAM_SIZE ? 'text-amber-300 font-bold' : ''}>DEF {count('DEF')}/{TEAM_SIZE}（{points('DEF')}点）</span>
+        <span className={count('DEF') > TEAM_SIZE ? 'text-amber-300 font-bold' : ''}>DEF {count('DEF')}/{TEAM_SIZE}（{points('DEF')}点）</span>・
+        観戦 {count('WATCH')}人
       </div>
-      <button className={`${btnGhost} w-full mt-2`} onClick={() => act({ type: 'randomTeams' })}>ランダムでチーム分け</button>
-      <p className="text-[10px] text-gray-500 mt-1">最高ランクの点数の合計が近くなるように分けます（未設定は{UNRANKED_POINTS}点）</p>
+      <p className="text-[10px] text-gray-500 mt-0.5">チーム分けは、最高ランクの点数の合計が近くなるように分けます（未設定は{UNRANKED_POINTS}点）{iAmOwner && '／× で名簿から外す（ルームの主だけ）'}</p>
     </section>
   );
 }
+
+/** 縛りのレア度名を、その色の小さな文字で（チームの欄では色はここだけ） */
+const RarityText = ({ rarity }: { rarity: BindRarity }) => (
+  <span className="shrink-0 text-[10px] font-black mr-1.5" style={{ color: RARITY_COLOR[rarity] }}>{rarity.toUpperCase()}</span>
+);
+
+/** 行を押すと下に開く、大きな操作の帯 */
+function SlotTools({ member, act, extraBtns }: { member: Member | undefined; act: Act; extraBtns?: ReactNode }) {
+  if (!member) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-2.5 py-2 bg-[#24313c] border-t border-white/10">
+      {extraBtns}
+      <label className="inline-flex items-center gap-1.5 h-8 px-2 border border-white/20 text-xs text-gray-300">縛りの指定
+        <RaritySelect value={member.bindPick ?? null} onChange={r => act({ type: 'bindPick', memberId: member.id, rarity: r })} />
+      </label>
+      <label className="inline-flex items-center gap-1.5 h-8 px-2 border border-white/20 text-xs text-gray-300">2つ目
+        <RaritySelect value={member.extraRarity ?? null} onChange={r => act({ type: 'extraBind', memberId: member.id, rarity: r })} />
+      </label>
+    </div>
+  );
+}
+
+const toolBtn = 'inline-flex items-center justify-center h-8 px-3 text-xs font-black bg-[#33414d] border border-white/20 hover:bg-[#3d4d5a] disabled:opacity-30';
 
 function TeamPanel({ side, state, locked, act, rerolling, focus }: {
   side: Side; state: RoomState; locked: boolean; act: Act; rerolling: number | null; focus: boolean;
@@ -504,61 +507,74 @@ function TeamPanel({ side, state, locked, act, rerolling, focus }: {
   const roll = state.teams[side];
   const seated = state.members.filter(m => m.seat === side);
   const color = side === 'ATK' ? 'text-[#FF4655]' : 'text-[#46CBFF]';
+  const edge = side === 'ATK' ? 'border-l-[3px] border-[#FF4655]' : 'border-l-[3px] border-[#46CBFF]';
   const changed = roll && (roll.slots.length !== seated.length || roll.slots.some(s => !seated.some(m => m.id === s.memberId)));
+  // 操作の帯を開いている人
+  const [openId, setOpenId] = useState<string | null>(null);
+  const memberOf = (id: string) => state.members.find(m => m.id === id);
+  const pickNote = (m?: Member) => m && (m.bindPick || m.extraRarity)
+    ? <span className="text-[11px] text-gray-400 ml-2">{m.bindPick && `指定 ${m.bindPick}`}{m.bindPick && m.extraRarity && '・'}{m.extraRarity && `2つ目 ${m.extraRarity}`}</span> : null;
 
   return (
     <section className={panel(focus)}>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center gap-2 mb-2">
         <h3 className={`font-black text-lg italic tracking-wider ${color}`}>{SIDE_LABEL[side]}</h3>
+        <span className="text-xs text-gray-400">{seated.length}/{TEAM_SIZE}人</span>
         <button disabled={locked || seated.length !== TEAM_SIZE} onClick={() => act({ type: 'roll', side })}
-          className={`${side === 'ATK' ? btnRed : btnBlue} py-1.5`}>
+          className={`${side === 'ATK' ? btnRed : btnBlue} py-1.5 ml-auto`}>
           {roll ? '回し直す' : '回す'}
         </button>
       </div>
       {roll ? (
-        <ul className="space-y-1.5">
-          {roll.slots.map((s, i) => (
-            <li key={s.memberId} className={`flex gap-2 bg-black/30 border border-white/5 p-1.5 ${rerolling === i ? 'animate-pulse' : ''}`}>
-              <img src={s.agent.image} alt="" className="w-12 h-12 object-cover object-top shrink-0" />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="font-bold text-sm truncate">{s.name}</span>
-                  <RankChip rank={state.members.find(m => m.id === s.memberId)?.rank} size="xs" />
-                  <span className="text-[11px] text-gray-400 truncate inline-flex items-center gap-1">
-                    <RoleIcon role={s.agent.role} size={12} />{s.agent.name}・{ROLE_LABEL[s.agent.role]}
+        <ul className="space-y-1">
+          {roll.slots.map((s, i) => {
+            const m = memberOf(s.memberId);
+            const open = openId === s.memberId;
+            return (
+              <li key={s.memberId} className={`bg-[#1f2a33] ${edge} ${open ? 'outline outline-1 outline-white/25' : ''} ${rerolling === i ? 'animate-pulse' : ''}`}>
+                <button type="button" onClick={() => setOpenId(open ? null : s.memberId)} aria-expanded={open}
+                  className="w-full flex items-stretch gap-2 text-left hover:bg-white/[0.03]">
+                  <img src={s.agent.image} alt="" className="w-11 h-[52px] object-cover object-top shrink-0" />
+                  <span className="min-w-0 flex-1 py-1 flex flex-col justify-center gap-0.5">
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <b className="text-sm truncate">{s.name}</b>
+                      <span className="text-[11px] text-gray-400 inline-flex items-center gap-1 shrink-0"><RoleIcon role={s.agent.role} size={11} />{s.agent.name}</span>
+                      {pickNote(m)}
+                    </span>
+                    <span className="flex items-baseline text-xs text-white/85 leading-snug"><RarityText rarity={s.bind.rarity} /><span>{s.bind.text.replace(/\n/g, ' ')}</span></span>
+                    {s.extra && <span className="flex items-baseline text-xs text-white/85 leading-snug"><RarityText rarity={s.extra.rarity} /><span>{s.extra.text.replace(/\n/g, ' ')}<span className="text-gray-400 ml-1">（2つ目）</span></span></span>}
                   </span>
-                </div>
-                <div className="flex items-start gap-1.5 mt-0.5">
-                  <RarityBadge rarity={s.bind.rarity} size="sm" />
-                  <span className="text-[11px] text-white/80 leading-snug line-clamp-2">{s.bind.text.replace(/\n/g, ' ')}</span>
-                </div>
-                {s.extra && (
-                  <div className="flex items-start gap-1.5 mt-1 pt-1 border-t border-dashed border-white/10">
-                    <RarityBadge rarity={s.extra.rarity} size="sm" />
-                    <span className="text-[11px] text-white/80 leading-snug line-clamp-2 flex-1">{s.extra.text.replace(/\n/g, ' ')}</span>
-                    <button disabled={locked} title="2つ目の縛りを振り直す" onClick={() => act({ type: 'rerollExtra', side, index: i })}
-                      className="shrink-0 text-[10px] px-1.5 py-0.5 border border-white/15 text-white/60 hover:text-white disabled:opacity-30">2↻</button>
-                  </div>
+                  <span className="shrink-0 self-center px-2 text-gray-400 text-xs" aria-hidden="true">{open ? '▴' : '▾'}</span>
+                </button>
+                {open && (
+                  <SlotTools member={m} act={act} extraBtns={<>
+                    <button disabled={locked} className={toolBtn} onClick={() => act({ type: 'reroll', side, index: i, target: 'agent' })}>↻ エージェントを引き直す</button>
+                    <button disabled={locked} className={toolBtn} onClick={() => act({ type: 'reroll', side, index: i, target: 'bind' })}>↻ 縛りを引き直す</button>
+                    {s.extra && <button disabled={locked} className={toolBtn} onClick={() => act({ type: 'rerollExtra', side, index: i })}>↻ 2つ目を引き直す</button>}
+                  </>} />
                 )}
-              </div>
-              <div className="flex flex-col gap-1 shrink-0">
-                <button disabled={locked} title="エージェントを振り直す" onClick={() => act({ type: 'reroll', side, index: i, target: 'agent' })}
-                  className="text-[10px] px-1.5 py-0.5 border border-white/15 text-white/60 hover:text-white disabled:opacity-30">顔↻</button>
-                <button disabled={locked} title="縛りを振り直す" onClick={() => act({ type: 'reroll', side, index: i, target: 'bind' })}
-                  className="text-[10px] px-1.5 py-0.5 border border-white/15 text-white/60 hover:text-white disabled:opacity-30">縛↻</button>
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       ) : (
-        <div className="border border-dashed border-white/15 p-3 flex-1">
-          {seated.length ? (
-            <ul className="flex flex-wrap gap-1.5">
-              {seated.map(m => <li key={m.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/10 text-white font-bold text-sm">{m.name}<RankChip rank={m.rank} size="xs" /></li>)}
-            </ul>
-          ) : <span className="text-sm text-gray-400">左の名簿でメンバーを振り分けてください</span>}
-          <div className="mt-2 text-xs text-gray-400">{seated.length}/{TEAM_SIZE}人・未抽選</div>
-        </div>
+        <ul className="space-y-1 flex-1">
+          {seated.map(m => {
+            const open = openId === m.id;
+            return (
+              <li key={m.id} className={`bg-[#1f2a33] ${edge} ${open ? 'outline outline-1 outline-white/25' : ''}`}>
+                <button type="button" onClick={() => setOpenId(open ? null : m.id)} aria-expanded={open}
+                  className="w-full h-10 flex items-center gap-2 px-2.5 text-left hover:bg-white/[0.03]">
+                  <b className="text-sm truncate">{m.name}</b>{pickNote(m)}
+                  <span className="ml-auto text-[11px] text-gray-400">{open ? '▴' : '縛りの指定 ▾'}</span>
+                </button>
+                {open && <SlotTools member={m} act={act} />}
+              </li>
+            );
+          })}
+          {!seated.length && <li className="text-sm text-gray-400 p-2">左の名簿で「{side}」を押して振り分けてください</li>}
+          {seated.length > 0 && seated.length < TEAM_SIZE && <li className="text-xs text-gray-500 p-1">あと{TEAM_SIZE - seated.length}人</li>}
+        </ul>
       )}
       {seated.length > TEAM_SIZE && <p className="text-xs text-amber-300 mt-2">{seated.length}人います。5人にすると回せます。</p>}
       {changed && seated.length <= TEAM_SIZE && <p className="text-xs text-amber-300 mt-2">メンバーが変わっています。回し直すと反映されます。</p>}
@@ -566,18 +582,7 @@ function TeamPanel({ side, state, locked, act, rerolling, focus }: {
   );
 }
 
-function MapStep({ no, state, title, children }: { no: number; state: 'done' | 'now' | 'wait'; title: string; children: ReactNode }) {
-  const tone = state === 'done' ? 'border-emerald-400/40 bg-emerald-400/5' : state === 'now' ? 'border-[#ffd83b]/50 bg-[#ffd83b]/5' : 'border-white/10 opacity-50';
-  const badge = state === 'done' ? 'bg-emerald-400 text-[#0F1923]' : state === 'now' ? 'bg-[#ffd83b] text-[#2b2a3f]' : 'bg-white/15 text-white/70';
-  return (
-    <li className={`flex flex-wrap items-center gap-x-2 gap-y-1 border px-2 py-1.5 ${tone}`}>
-      <span className={`inline-flex w-5 h-5 shrink-0 rounded-full items-center justify-center text-[11px] font-black ${badge}`}>{state === 'done' ? '✓' : no}</span>
-      <b className="text-white/90 whitespace-nowrap">{title}</b>
-      <span className="ml-auto flex items-center">{children}</span>
-    </li>
-  );
-}
-
+/** マップ：右下に横長。手順は1行にまとめる（①OBSに出す ②BAN/PICK ③マップを押す ④回す） */
 function MapPanel({ state, locked, act, focus }: { state: RoomState; locked: boolean; act: Act; focus: boolean }) {
   const mode: MapMode = state.mapMode ?? 'BAN';
   const marks = state.mapMarks ?? [];
@@ -585,35 +590,25 @@ function MapPanel({ state, locked, act, focus }: { state: RoomState; locked: boo
   // いきなり回すとOBS側の準備が追いつかないので、先に候補をOBSに出してから回す
   const ready = state.display?.kind === 'mapSetup' || state.display?.kind === 'map';
   return (
-    <section className={`${panel(focus)} h-full`}>
-      <h3 className="font-black text-lg italic tracking-wider text-[#ffd83b] mb-2">MAP</h3>
-      {/* 手順を1〜4の箱で並べる。済んだ所は緑、今やる所は黄色 */}
-      <ol className="grid gap-1.5 mb-2 text-xs">
-        <MapStep no={1} state={ready ? 'done' : 'now'} title="候補をOBSに出す">
-          <button disabled={locked || state.display?.kind === 'mapSetup'} onClick={() => act({ type: 'showMapSetup' })}
-            className={`${ready ? btnGhost : btnYellow} py-1 px-2 text-xs whitespace-nowrap`}>{ready ? 'OBSに表示中' : 'OBSに出す'}</button>
-        </MapStep>
-        <MapStep no={2} state={ready ? 'now' : 'wait'} title="選び方を決める">
-          <div className="flex bg-black/40 p-0.5 border border-white/10">
-            {(['BAN', 'PICK'] as MapMode[]).map(m => (
-              <button key={m} onClick={() => act({ type: 'mapMode', mode: m })}
-                className={`px-2 py-0.5 text-[11px] font-black whitespace-nowrap ${mode === m ? (m === 'PICK' ? 'bg-[#FF4655] text-white' : 'bg-[#46CBFF] text-[#0F1923]') : 'text-white/45 hover:text-white'}`}>
-                {m}<span className="font-bold ml-1">{m === 'PICK' ? '押したマップから選ぶ' : '押したマップを外す'}</span>
-              </button>
-            ))}
-          </div>
-        </MapStep>
-        <MapStep no={3} state={ready ? 'now' : 'wait'} title="下のマップを押して印を付ける">
-          <span className="text-white/60">{mode === 'PICK' ? '赤い枠のマップだけが候補' : 'BANの付いたマップは候補から外れる'}（もう一度押すと戻る）</span>
-        </MapStep>
-        <MapStep no={4} state={ready ? 'now' : 'wait'} title="回す">
-          <button disabled={locked || pool.length === 0 || !ready} onClick={() => act({ type: 'mapRoll' })}
-            title={ready ? '' : '先に「OBSに出す」を押してください'}
-            className={`${btnYellow} py-1 px-3 whitespace-nowrap`}>回す（候補{pool.length}）</button>
-        </MapStep>
-      </ol>
-      <p className="text-[11px] text-gray-500 mb-2">一度出たマップは「済」になり、次から外れます。</p>
-      <div className="grid grid-cols-5 2xl:grid-cols-3 gap-1.5">
+    <section className={panel(focus)}>
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        <h3 className="font-black text-lg italic tracking-wider text-[#ffd83b] mr-1">MAP</h3>
+        <button disabled={locked || state.display?.kind === 'mapSetup'} onClick={() => act({ type: 'showMapSetup' })}
+          className={`${ready ? btnGhost : btnYellow} py-1 px-3 text-xs`}>{ready ? '✓ OBSに表示中' : '① 候補をOBSに出す'}</button>
+        <div className={`flex bg-black/40 p-0.5 border border-white/10 ${ready ? '' : 'opacity-50'}`}>
+          {(['BAN', 'PICK'] as MapMode[]).map(m => (
+            <button key={m} onClick={() => act({ type: 'mapMode', mode: m })}
+              className={`px-2 py-0.5 text-[11px] font-black whitespace-nowrap ${mode === m ? (m === 'PICK' ? 'bg-[#FF4655] text-white' : 'bg-[#46CBFF] text-[#0F1923]') : 'text-white/45 hover:text-white'}`}>
+              {m}<span className="font-bold ml-1">{m === 'PICK' ? '押したマップから選ぶ' : '押したマップを外す'}</span>
+            </button>
+          ))}
+        </div>
+        <span className="text-[11px] text-gray-400">マップを押して印（もう一度押すと戻る）</span>
+        <button disabled={locked || pool.length === 0 || !ready} onClick={() => act({ type: 'mapRoll' })}
+          title={ready ? '' : '先に「候補をOBSに出す」を押してください'}
+          className={`${btnYellow} py-1.5 px-4 ml-auto whitespace-nowrap`}>マップを回す（候補{pool.length}）</button>
+      </div>
+      <div className="grid grid-cols-4 sm:grid-cols-7 2xl:grid-cols-[repeat(13,minmax(0,1fr))] gap-1.5">
         {MAPS.map(m => {
           const marked = marks.includes(m.id);
           const used = state.mapHistory.includes(m.id);
@@ -634,8 +629,10 @@ function MapPanel({ state, locked, act, focus }: { state: RoomState; locked: boo
           );
         })}
       </div>
-      <button className="text-[11px] text-gray-500 hover:text-white underline mt-2 self-start disabled:opacity-40"
-        disabled={!state.mapHistory.length} onClick={() => act({ type: 'mapClearHistory' })}>出たマップを戻す</button>
+      <div className="flex items-center gap-3 mt-1.5 text-[11px] text-gray-500">
+        <span>一度出たマップは「済」になり、次から外れます。</span>
+        <button className="hover:text-white underline disabled:opacity-40" disabled={!state.mapHistory.length} onClick={() => act({ type: 'mapClearHistory' })}>出たマップを戻す</button>
+      </div>
     </section>
   );
 }
