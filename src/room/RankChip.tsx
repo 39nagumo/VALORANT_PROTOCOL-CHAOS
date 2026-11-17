@@ -19,7 +19,7 @@ export function RankPicker({ value, onChange }: { value: RankId | null; onChange
         const on = value === r.id;
         return (
           <button key={r.id} type="button" onClick={() => onChange(on ? null : r.id)} aria-pressed={on}
-            className={`h-10 inline-flex items-center justify-center text-sm font-black rounded-sm transition ${on ? 'ring-2 ring-white ring-offset-2 ring-offset-[#172129]' : 'opacity-60 hover:opacity-100'}`}
+            className={`h-10 pt-[2px] inline-flex items-center justify-center text-sm font-black rounded-sm transition ${on ? 'ring-2 ring-white ring-offset-2 ring-offset-[#172129]' : 'opacity-60 hover:opacity-100'}`}
             style={{ background: r.color, color: r.ink }}>
             {r.label}
           </button>
