@@ -12,6 +12,8 @@ const NEW_HEADS = [
   'シールドは',
   '【あだ名縛り】',
   '報告はすべて敬語に',
+  '【マグロの宿命】',
+  '【シンデレラ】',
 ];
 
 for (const [rarity, list] of Object.entries(binds as Record<string, string[]>)) {
