@@ -26,16 +26,16 @@ export const isBindRarity = (v: unknown): v is BindRarity => BIND_RARITIES.inclu
  * 点数はチーム分けの目安にだけ使う。変えるときはここだけ直す
  */
 export const RANKS = [
-  // color＝公式のランクの紋章の色を目安にした札の地の色、ink＝その上の文字の色
-  { id: 'iron', label: 'アイアン', points: 1, color: '#7a7a7a', ink: '#ffffff' },
-  { id: 'bronze', label: 'ブロンズ', points: 2, color: '#a5774a', ink: '#ffffff' },
-  { id: 'silver', label: 'シルバー', points: 3, color: '#c8d0d2', ink: '#1b1f24' },
-  { id: 'gold', label: 'ゴールド', points: 5, color: '#e6b84a', ink: '#1b1f24' },
-  { id: 'platinum', label: 'プラチナ', points: 7, color: '#36b3c4', ink: '#0b1a1d' },
-  { id: 'diamond', label: 'ダイヤモンド', points: 10, color: '#b77fe0', ink: '#ffffff' },
-  { id: 'ascendant', label: 'アセンダント', points: 13, color: '#2fb576', ink: '#ffffff' },
-  { id: 'immortal', label: 'イモータル', points: 17, color: '#c8394f', ink: '#ffffff' },
-  { id: 'radiant', label: 'レディアント', points: 22, color: '#fff1b8', ink: '#5a4300' },
+  // color＝公式のランクの紋章の色を目安にした札の地の色、ink＝その上の文字の色、fg＝暗い地の上で文字として使う色
+  { id: 'iron', label: 'アイアン', points: 1, color: '#7a7a7a', ink: '#ffffff', fg: '#a8a8a8' },
+  { id: 'bronze', label: 'ブロンズ', points: 2, color: '#a5774a', ink: '#ffffff', fg: '#d29a63' },
+  { id: 'silver', label: 'シルバー', points: 3, color: '#c8d0d2', ink: '#1b1f24', fg: '#dfe6e8' },
+  { id: 'gold', label: 'ゴールド', points: 5, color: '#e6b84a', ink: '#1b1f24', fg: '#f0c45a' },
+  { id: 'platinum', label: 'プラチナ', points: 7, color: '#36b3c4', ink: '#0b1a1d', fg: '#4fd0e0' },
+  { id: 'diamond', label: 'ダイヤモンド', points: 10, color: '#b77fe0', ink: '#ffffff', fg: '#c99af0' },
+  { id: 'ascendant', label: 'アセンダント', points: 13, color: '#2fb576', ink: '#ffffff', fg: '#3fd28c' },
+  { id: 'immortal', label: 'イモータル', points: 17, color: '#c8394f', ink: '#ffffff', fg: '#ff5a72' },
+  { id: 'radiant', label: 'レディアント', points: 22, color: '#fff1b8', ink: '#5a4300', fg: '#fff1b8' },
 ] as const;
 export type RankId = typeof RANKS[number]['id'];
 /** ランクを選んでいない人は、この点数として数える（ゴールド相当） */
@@ -44,6 +44,11 @@ export const UNRANKED_POINTS = 5;
 export const BALANCE_LEVELS = 2;
 /** 候補がこれより少ないときは、もう1段先の差まで広げる（同じ編成ばかりにならないように） */
 export const BALANCE_MIN_CHOICES = 6;
+/**
+ * 「いちばん小さい差」より、この点数を超えて開く分け方は選ばない。
+ * 点数が大きく離れた10人（どう分けても10点以上の差が出るなど）でも、いちばん差の小さい分け方を基準にする
+ */
+export const BALANCE_MAX_EXTRA = 4;
 
 export const isRankId = (v: unknown): v is RankId => RANKS.some(r => r.id === v);
 export const rankOf = (id: RankId | null | undefined) => RANKS.find(r => r.id === id) ?? null;
@@ -52,7 +57,8 @@ export const rankPoints = (id: RankId | null | undefined) => rankOf(id)?.points 
 /**
  * 10人を5人ずつに分ける（返り値は [ATK, DEF]）。
  * 合計点の差が「いちばん小さい差」と「その次に小さい差」の分け方を候補にして、その中からランダムに選ぶ。
- * 候補が少なければもう1段広げる。今の組み合わせ（isNowAtk）と同じ分け方は、ほかに候補がある限り選ばない。
+ * 候補が少なければもう1段広げる。ただし「どう分けても出るいちばん小さい差 + BALANCE_MAX_EXTRA」を超える分け方は選ばない。
+ * 今の組み合わせ（isNowAtk）と同じ分け方は、ほかに候補がある限り選ばない。
  * 同じ点数の人どうしは入れ替わっても差が変わらないので、自然に入れ替わる
  */
 export function balancedSplit<T>(players: T[], points: (p: T) => number, isNowAtk?: (p: T) => boolean, random = Math.random): [T[], T[]] {
@@ -74,12 +80,20 @@ export function balancedSplit<T>(players: T[], points: (p: T) => number, isNowAt
     if (!(m & 1)) m = ((1 << n) - 1) & ~m;
     nowMask = m;
   }
-  const usable = splits.filter(sp => sp.mask !== nowMask);
-  const pool0 = usable.length ? usable : splits;
-  const levels = [...new Set(pool0.map(sp => sp.diff))].sort((a, b) => a - b);
-  let k = Math.min(BALANCE_LEVELS, levels.length);
-  let ok = pool0.filter(sp => sp.diff <= levels[k - 1]);
-  while (ok.length < BALANCE_MIN_CHOICES && k < levels.length) { k++; ok = pool0.filter(sp => sp.diff <= levels[k - 1]); }
+  // どう分けても出る、いちばん小さい差（今の組み合わせも含めて数える）
+  const best = Math.min(...splits.map(sp => sp.diff));
+  const cap = best + BALANCE_MAX_EXTRA;
+  const usable = splits.filter(sp => sp.mask !== nowMask && sp.diff <= cap);
+  let ok: typeof splits;
+  if (!usable.length) {
+    // 差を広げずに入れ替えられる分け方が無ければ、いちばん小さい差の分け方（今と同じでも）にする
+    ok = splits.filter(sp => sp.diff === best);
+  } else {
+    const levels = [...new Set(usable.map(sp => sp.diff))].sort((a, b) => a - b);
+    let k = Math.min(BALANCE_LEVELS, levels.length);
+    ok = usable.filter(sp => sp.diff <= levels[k - 1]);
+    while (ok.length < BALANCE_MIN_CHOICES && k < levels.length) { k++; ok = usable.filter(sp => sp.diff <= levels[k - 1]); }
+  }
   const pick = ok[Math.floor(random() * ok.length)].mask;
   const a = players.filter((_, i) => pick & (1 << i));
   const b = players.filter((_, i) => !(pick & (1 << i)));

@@ -12,7 +12,7 @@ import { MapReveal, RarityBadge, ROLE_LABEL, SIDE_LABEL, Stage, TeamReveal } fro
 import { RoleIcon } from './RoleIcon';
 import { HowToModal } from './HowToModal';
 import type { BindRarity } from '../logic/gacha';
-import { RankChip, RankPicker } from './RankChip';
+import { RankChip } from './RankChip';
 
 const SEAT_NEXT: Record<Seat, Seat> = { WATCH: 'ATK', ATK: 'DEF', DEF: 'WATCH' };
 const SEAT_STYLE: Record<Seat, string> = {
@@ -107,10 +107,10 @@ export function RoomPage() {
 function RankSelect({ value, onChange, compact = false }: { value: RankId | null; onChange: (r: RankId | null) => void; compact?: boolean }) {
   return (
     <select value={value ?? ''} onChange={e => onChange(isRankId(e.target.value) ? e.target.value : null)}
-      style={rankOf(value) ? { background: rankOf(value)!.color, color: rankOf(value)!.ink } : undefined}
-      className={`bg-[#0F1923] border border-gray-600 text-white font-bold outline-none focus:border-[#FF4655] ${compact ? 'px-2 py-1 text-xs' : 'w-full px-4 py-3'}`}>
-      <option value="" style={{ background: '#0F1923', color: '#fff' }}>未設定</option>
-      {RANKS.map(r => <option key={r.id} value={r.id} style={{ background: r.color, color: r.ink }}>{r.label}</option>)}
+      style={{ color: rankOf(value)?.fg ?? '#ffffff' }}
+      className={`bg-[#0F1923] border border-gray-600 font-black outline-none focus:border-[#FF4655] ${compact ? 'px-2 py-1 text-xs' : 'w-full px-4 py-3'}`}>
+      <option value="" style={{ background: '#0F1923', color: '#ffffff' }}>未設定</option>
+      {RANKS.map(r => <option key={r.id} value={r.id} style={{ background: '#0F1923', color: r.fg }}>{r.label}</option>)}
     </select>
   );
 }
@@ -158,8 +158,8 @@ function JoinForm({ onJoin, onAdopt, onHowTo, error }: {
         名前を入れて参加してください（次回からは自動で入ります）。<br />
         操作は代表1人でOK。ほかの人は参加してOBSにURLを入れるだけです。
       </p>
-      <p className="text-sm font-bold mb-1.5">最高ランク<span className="text-gray-400 font-normal ml-2">チーム分けの目安になります（もう一度押すと未設定）</span></p>
-      <div className="mb-4"><RankPicker value={rank} onChange={setRank} /></div>
+      <p className="text-sm font-bold mb-1.5">最高ランク<span className="text-gray-400 font-normal ml-2">チーム分けの目安になります</span></p>
+      <div className="mb-4"><RankSelect value={rank} onChange={setRank} /></div>
       <form onSubmit={submit} className="flex gap-2">
         <input value={name} maxLength={NAME_MAX} onChange={e => setName(e.target.value)} placeholder="名前"
           className="flex-1 bg-[#0F1923] border border-gray-600 text-white px-4 py-3 font-bold outline-none focus:border-[#FF4655]" />
