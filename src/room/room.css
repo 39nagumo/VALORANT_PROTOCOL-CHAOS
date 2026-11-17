@@ -204,3 +204,8 @@
 .cr-extra-txt { flex-basis: 100%; text-align: center; }
 .cr-extra-sm { margin-top: 6px; padding-top: 5px; font-size: 12px; justify-content: flex-start; }
 .cr-extra-sm .cr-extra-txt { flex-basis: auto; flex: 1; text-align: left; }
+/* 試合中のカードの2つ目：札は上の行、文は1つ目と同じ大きさ（11/17 本人） */
+.cr-mine-extra { margin-top: 8px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,.25); }
+.cr-mine-extra-head { display: flex; align-items: center; gap: 6px; }
+.cr-mine-extra .cr-extra-tag { font-size: 12px; }
+.cr-mine-extra p { margin-top: 4px; }

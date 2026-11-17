@@ -324,6 +324,9 @@ export function MyCard({ slot, side, reroll, appear = false }: {
   const face = spinning && reroll.target === 'agent' ? pool[Math.floor(rand(reroll.seed, tick) * pool.length)] : slot.agent;
   const text = spinning && reroll.target === 'bind' ? rollingBind(slot.bind.rarity, reroll.seed, spinTick(reroll.t, 90)) : slot.bind.text;
   const flash = reroll && !spinning ? Math.max(0, 1 - (reroll.t - REROLL_STOP) / 250) : 0;
+  // 2つ目の縛り：試合中ずっと出る画面なので、1つ目と同じ大きさの文字で出す（長いほうに合わせる）
+  const extraText = slot.extra ? (spinning && reroll.target === 'extra' ? rollingBind(slot.extra.rarity, reroll.seed, spinTick(reroll.t, 90)) : slot.extra.text) : '';
+  const size = Math.max(15, Math.min(bindFontSize(text, 17), slot.extra ? bindFontSize(extraText, 17) : 99));
 
   return (
     // 攻守は後半で入れ替わるので出さない。色はレア度だけ
@@ -337,10 +340,13 @@ export function MyCard({ slot, side, reroll, appear = false }: {
           <span className="cr-mine-ag">{spinning && reroll.target === 'agent' ? '？？？' : slot.agent.name}</span>
           <RarityBadge rarity={slot.bind.rarity} size="sm" />
         </div>
-        <BindText text={text} className={spinning && reroll.target === 'bind' ? 'cr-rolling' : ''} size={Math.max(15, bindFontSize(text, 17))} />
-        {slot.extra && (spinning && reroll.target === 'extra'
-          ? <ExtraBind bind={slot.extra} small text={rollingBind(slot.extra.rarity, reroll.seed, spinTick(reroll.t, 90))} rolling />
-          : <ExtraBind bind={slot.extra} small />)}
+        <BindText text={text} className={spinning && reroll.target === 'bind' ? 'cr-rolling' : ''} size={size} />
+        {slot.extra && (
+          <div className="cr-mine-extra" style={{ '--rc2': RARITY_COLOR[slot.extra.rarity] } as CSSProperties}>
+            <div className="cr-mine-extra-head"><span className="cr-extra-tag">2つ目</span><RarityBadge rarity={slot.extra.rarity} size="sm" /></div>
+            <BindText text={extraText} className={spinning && reroll.target === 'extra' ? 'cr-rolling' : ''} size={size} />
+          </div>
+        )}
       </div>
       {flash > 0 && <div className="cr-flash-white" style={{ opacity: flash * 0.8 }} />}
     </div>
