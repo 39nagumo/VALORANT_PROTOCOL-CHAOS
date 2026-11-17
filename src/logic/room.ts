@@ -119,7 +119,7 @@ export interface TeamRoll {
 /** 全員の画面で同時に流す演出。startedAt はサーバー時刻 */
 export type RoomEvent =
   | { kind: 'team'; id: string; side: Side; startedAt: number; by: string }
-  | { kind: 'reroll'; id: string; side: Side; index: number; target: 'agent' | 'bind'; startedAt: number; by: string }
+  | { kind: 'reroll'; id: string; side: Side; index: number; target: 'agent' | 'bind' | 'extra'; startedAt: number; by: string }
   | { kind: 'map'; id: string; mapId: string; pool: string[]; startedAt: number; by: string };
 
 /** マップのPICK/BANを話し合っている途中の画面（印の状態をそのまま映す） */

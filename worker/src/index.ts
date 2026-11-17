@@ -259,6 +259,7 @@ export class Room extends DurableObject<Env> {
         const next = drawBind(slot.extra.rarity, [...others, slot.extra.text]);
         if (!next) throw new UserError('ほかに候補がありません');
         slot.extra = next;
+        this.startEvent({ kind: 'reroll', id: crypto.randomUUID(), side: msg.side, index: msg.index, target: 'extra', startedAt: now + EVENT_LEAD_MS, by });
         break;
       }
       case 'leave':

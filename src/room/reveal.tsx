@@ -82,7 +82,7 @@ export function BindText({ text, className = '', size }: { text: string; classNa
 const nameFontSize = (name: string) => (name.length > 11 ? 14 : name.length > 8 ? 16 : 20);
 
 /** 振り直しの演出中の情報（対象・経過時間） */
-export interface RerollAnim { target: 'agent' | 'bind'; t: number; seed: string }
+export interface RerollAnim { target: 'agent' | 'bind' | 'extra'; t: number; seed: string }
 
 /** 1920×1080 の画面を、置き場所の大きさに合わせて縮小して表示する */
 export function Stage({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -204,7 +204,9 @@ function RevealCard({ slot, seed, local, reroll, mine }: {
             const text = !bindSpin ? slot.bind.text : badgeOn ? rollingBind(slot.bind.rarity, spinSeed, spinTick(spinT, 90)) : '';
             return <BindText text={text} className={bindSpin ? 'cr-rolling' : ''} size={slot.extra ? bindFontSize(text, 16) : bindFontSize(text)} />;
           })()}
-          {slot.extra && !bindSpin && <ExtraBind bind={slot.extra} />}
+          {slot.extra && !bindSpin && (re?.target === 'extra' && re.t < REROLL_STOP
+            ? <ExtraBind bind={slot.extra} text={rollingBind(slot.extra.rarity, re.seed, spinTick(re.t, 90))} rolling />
+            : <ExtraBind bind={slot.extra} />)}
           {bindFlash > 0 && <div className="cr-bind-flash" style={{ opacity: bindFlash }} />}
         </div>
       </div>
@@ -297,12 +299,13 @@ export function MapBoard({ mode, marks, history, by }: { mode: MapMode; marks: s
 // ---------------------------------------------------------------- 試合中に出し続けるカード
 
 /** 2つ目の縛り（任意）。1つ目の下に小さく出す */
-export function ExtraBind({ bind, small = false }: { bind: Bind; small?: boolean }) {
+/** text・rolling：2つ目を引き直している間は、回っている途中の文を薄く出す */
+export function ExtraBind({ bind, small = false, text, rolling = false }: { bind: Bind; small?: boolean; text?: string; rolling?: boolean }) {
   return (
     <div className={`cr-extra ${small ? 'cr-extra-sm' : ''}`} style={{ '--rc2': RARITY_COLOR[bind.rarity] } as CSSProperties}>
       <span className="cr-extra-tag">2つ目</span>
       <RarityBadge rarity={bind.rarity} size="sm" />
-      <span className="cr-extra-txt">{bind.text.replace(/\n/g, ' ')}</span>
+      <span className={`cr-extra-txt ${rolling ? 'cr-rolling' : ''}`}>{(text ?? bind.text).replace(/\n/g, ' ')}</span>
     </div>
   );
 }
@@ -335,7 +338,9 @@ export function MyCard({ slot, side, reroll, appear = false }: {
           <RarityBadge rarity={slot.bind.rarity} size="sm" />
         </div>
         <BindText text={text} className={spinning && reroll.target === 'bind' ? 'cr-rolling' : ''} size={Math.max(15, bindFontSize(text, 17))} />
-        {slot.extra && <ExtraBind bind={slot.extra} small />}
+        {slot.extra && (spinning && reroll.target === 'extra'
+          ? <ExtraBind bind={slot.extra} small text={rollingBind(slot.extra.rarity, reroll.seed, spinTick(reroll.t, 90))} rolling />
+          : <ExtraBind bind={slot.extra} small />)}
       </div>
       {flash > 0 && <div className="cr-flash-white" style={{ opacity: flash * 0.8 }} />}
     </div>

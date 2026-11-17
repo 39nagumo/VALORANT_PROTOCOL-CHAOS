@@ -113,9 +113,11 @@ function RankSelect({ value, onChange, compact = false }: { value: RankId | null
 function RaritySelect({ value, onChange }: { value: BindRarity | null; onChange: (r: BindRarity | null) => void }) {
   return (
     <select value={value ?? ''} onChange={e => onChange(isBindRarity(e.target.value) ? e.target.value : null)}
-      className="flex-1 min-w-0 bg-[#0F1923] border border-gray-600 text-white font-bold px-2 py-1 outline-none focus:border-[#FF4655]">
-      <option value="">なし</option>
-      {BIND_RARITIES.map(r => <option key={r} value={r}>{r}</option>)}
+      // 11/17 本人：選んだ後も、開いた一覧でも、レア度の色の文字で
+      style={{ color: value ? RARITY_COLOR[value] : '#ffffff' }}
+      className="flex-1 min-w-0 bg-[#0F1923] border border-gray-600 font-bold px-2 py-1 outline-none focus:border-[#FF4655]">
+      <option value="" style={{ color: '#ffffff' }}>なし</option>
+      {BIND_RARITIES.map(r => <option key={r} value={r} style={{ color: RARITY_COLOR[r] }}>{r}</option>)}
     </select>
   );
 }
@@ -508,7 +510,7 @@ function SlotTools({ member, act, extraBtns }: { member: Member | undefined; act
 const toolBtn = 'inline-flex items-center justify-center h-8 px-3 text-xs font-black bg-[#33414d] border border-white/20 hover:bg-[#3d4d5a] disabled:opacity-30';
 
 function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealing, focus }: {
-  side: Side; state: RoomState; locked: boolean; act: Act; rerolling: number | null; rerollTarget: 'agent' | 'bind' | null; revealing: boolean; focus: boolean;
+  side: Side; state: RoomState; locked: boolean; act: Act; rerolling: number | null; rerollTarget: 'agent' | 'bind' | 'extra' | null; revealing: boolean; focus: boolean;
 }) {
   const roll = state.teams[side];
   const seated = state.members.filter(m => m.seat === side);
@@ -551,6 +553,7 @@ function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealin
             const open = openId === s.memberId;
             const hideAgent = rerolling === i && rerollTarget === 'agent';
             const hideBind = rerolling === i && rerollTarget === 'bind';
+            const hideExtra = rerolling === i && rerollTarget === 'extra';
             return (
               <li key={s.memberId} data-slot={s.memberId} data-side={side} className={`bg-[#1f2a33] ${edge} ${open ? 'outline outline-1 outline-white/25' : ''} ${rerolling === i ? 'animate-pulse' : ''}`}>
                 <button type="button" onClick={() => setOpenId(open ? null : s.memberId)} aria-expanded={open}
@@ -563,7 +566,7 @@ function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealin
                       {pickNote(m)}
                     </span>
                     <span className="flex items-baseline text-[15px] text-white/85 leading-snug"><RarityText rarity={s.bind.rarity} /><span>{hideBind ? '抽選中…' : s.bind.text.replace(/\n/g, ' ')}</span></span>
-                    {s.extra && <span className="flex items-baseline text-[15px] text-white/85 leading-snug"><RarityText rarity={s.extra.rarity} /><span>{s.extra.text.replace(/\n/g, ' ')}<span className="text-gray-400 ml-1">（2つ目）</span></span></span>}
+                    {s.extra && <span className="flex items-baseline text-[15px] text-white/85 leading-snug"><RarityText rarity={s.extra.rarity} /><span>{hideExtra ? '抽選中…' : s.extra.text.replace(/\n/g, ' ')}<span className="text-gray-400 ml-1">（2つ目）</span></span></span>}
                   </span>
                   <span className="shrink-0 self-center px-2 text-gray-400 text-xs" aria-hidden="true">{open ? '▴' : '▾'}</span>
                 </button>
