@@ -482,7 +482,7 @@ function Roster({ members, memberId, owner, act, focus }: { members: Member[]; m
 
 /** 縛りのレア度名を、その色の小さな文字で（チームの欄では色はここだけ） */
 const RarityText = ({ rarity }: { rarity: BindRarity }) => (
-  <span className="shrink-0 w-[54px] text-[10px] font-black" style={{ color: RARITY_COLOR[rarity] }}>{rarity.toUpperCase()}</span>
+  <span className="shrink-0 text-[10px] font-black mr-1.5" style={{ color: RARITY_COLOR[rarity] }}>{rarity.toUpperCase()}</span>
 );
 
 /** 行を押すと下に開く、大きな操作の帯 */
