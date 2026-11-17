@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from "react-router-dom";
 import { MAPS } from '../data/maps';
+import { backLink, btnGhost, pageTitle } from '../ui/lobby';
 
 
 interface Props {
@@ -113,40 +114,39 @@ export function MapGacha({ onBack }: Props) {
         }
       `}} />
 
-      <header className="mb-8 flex justify-between items-end border-b border-white/10 pb-4">
-        <div>
-          <button onClick={onBack} className="text-xs text-gray-400 hover:text-white transition-colors mb-2 block uppercase tracking-[0.2em] font-bold">
-            ← Back
-          </button>
-          <div className="flex items-center gap-6">
-            <h2 className="text-4xl font-black italic uppercase tracking-tighter">MAP <span className="text-[#FF4655]">SELECTION</span></h2>
-            
-            <div className="flex bg-black/40 p-1 rounded border border-white/10 mb-1">
-              <button
-                onClick={() => { resetAll(); setMode('PICK'); }}
-                className={`px-4 py-1 text-[11px] font-black tracking-widest transition-all ${
-                  mode === 'PICK' ? 'bg-[#FF4655] text-white' : 'text-white/40 hover:text-white'
-                }`}
-              >
-                PICK
-              </button>
-              <button
-                onClick={() => { resetAll(); setMode('BAN'); }}
-                className={`px-4 py-1 text-[11px] font-black tracking-widest transition-all ${
-                  mode === 'BAN' ? 'bg-[#46CBFF] text-white' : 'text-white/40 hover:text-white'
-                }`}
-              >
-                BAN
-              </button>
-            </div>
-          </div>
-        </div>
-        <button onClick={resetAll} className="text-[10px] font-black border border-white/20 px-6 py-2 hover:bg-[#FF4655] hover:text-white hover:border-[#FF4655] transition-all uppercase tracking-widest text-gray-500">
-          Reset All Data
+      <header className="mb-6">
+        <button onClick={onBack} className={`${backLink} mb-3`}>
+          ← 戻る
         </button>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <h2 className={pageTitle}>マップ抽選</h2>
+          <button onClick={resetAll} className={btnGhost}>
+            最初からやり直す
+          </button>
+        </div>
       </header>
 
-      <div className="flex flex-wrap gap-4 mb-10">
+      {/* 選び方：PICK＝押したマップから選ぶ／BAN＝押したマップを外す */}
+      <div className="flex mb-6">
+        <button
+          onClick={() => { resetAll(); setMode('PICK'); }}
+          className={`flex-1 min-h-14 py-2 flex flex-col sm:flex-row items-center justify-center gap-0 sm:gap-3 font-extrabold transition-colors ${
+            mode === 'PICK' ? 'bg-[#ff4655] text-white' : 'bg-[#1a2027] text-[#9aa3ad] hover:text-[#ece8e1]'
+          }`}
+        >
+          <span className="text-lg">PICK</span><span className="text-sm font-bold">押したマップから選ぶ</span>
+        </button>
+        <button
+          onClick={() => { resetAll(); setMode('BAN'); }}
+          className={`flex-1 min-h-14 py-2 flex flex-col sm:flex-row items-center justify-center gap-0 sm:gap-3 font-extrabold transition-colors ${
+            mode === 'BAN' ? 'bg-[#3fb7ec] text-[#101418]' : 'bg-[#1a2027] text-[#9aa3ad] hover:text-[#ece8e1]'
+          }`}
+        >
+          <span className="text-lg">BAN</span><span className="text-sm font-bold">押したマップを外す</span>
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-10">
         {MAPS.map((map, idx) => {
           const isSelected = selectedIds.includes(map.id);
           const isPicked = pickedIds.includes(map.id);
@@ -161,13 +161,13 @@ export function MapGacha({ onBack }: Props) {
               key={map.id}
               onClick={() => toggleSelect(map.id)}
               className={`
-                w-[calc((100%-1rem)/2)] md:w-[calc((100%-2rem)/3)] lg:w-[calc((100%-4rem)/5)]
-                relative aspect-video flex items-end justify-center border-2 transition-all duration-200 cursor-pointer overflow-hidden
-                ${isExcluded ? 'border-transparent grayscale opacity-40' : 'border-white/10 hover:border-white/30'}
-                ${mode === 'PICK' && isSelected && !isPicked ? 'border-[#FF4655] shadow-[inset_0_0_15px_rgba(255,70,85,0.4)] ring-1 ring-[#FF4655]' : ''}
-                ${isPicked ? (isLatestPick ? 'border-[#FF4655]/60 shadow-[0_0_15px_rgba(255,70,85,0.2)]' : 'border-[#FF4655]/20 grayscale-[0.4]') : ''}
-                ${isHighlight ? 'border-white scale-[1.02] z-10 shadow-[0_0_20px_rgba(255,255,255,0.3)] !grayscale-0 !opacity-100' : ''}
-                ${isResult ? 'border-[#FF4655] z-20 shadow-[0_0_40px_rgba(255,70,85,0.5)] !grayscale-0 !opacity-100' : ''}
+                w-[calc((100%-0.5rem)/2)] md:w-[calc((100%-1rem)/3)] lg:w-[calc((100%-2rem)/5)]
+                relative aspect-video flex items-end justify-center border-[3px] transition-all duration-200 cursor-pointer overflow-hidden
+                ${isExcluded ? 'border-transparent grayscale opacity-40' : 'border-transparent hover:border-white/30'}
+                ${mode === 'PICK' && isSelected && !isPicked ? '!border-[#ff4655]' : ''}
+                ${isPicked ? (isLatestPick ? '!border-[#ff4655]' : 'border-[#ff4655]/30 grayscale-[0.4]') : ''}
+                ${isHighlight ? '!border-white z-10 !grayscale-0 !opacity-100' : ''}
+                ${isResult ? '!border-[#ffd83b] z-20 !grayscale-0 !opacity-100' : ''}
               `}
             >
               <img 
@@ -175,33 +175,35 @@ export function MapGacha({ onBack }: Props) {
                 alt={map.name} 
                 className={`absolute inset-0 w-full h-full object-cover transition-transform duration-700 
                   ${isResult ? 'animate-image-pulse' : isHighlight ? 'scale-105' : 'scale-100'}
+                  ${mode === 'BAN' && isSelected ? 'grayscale' : ''}
                 `} 
               />
               
               <div className={`absolute inset-0 transition-colors ${
-                mode === 'BAN' && isSelected ? 'bg-black/80' : 
-                isPicked ? (isLatestPick ? 'bg-black/40' : 'bg-black/70') : 
-                'bg-gradient-to-t from-black/80 via-transparent to-transparent'
+                mode === 'BAN' && isSelected ? 'bg-[#101418]/75' :
+                isPicked ? (isLatestPick ? 'bg-black/30' : 'bg-black/60') :
+                'bg-gradient-to-t from-black/70 via-transparent to-transparent'
               }`} />
-              
+
+              {/* BAN は灰色＋赤い斜線 */}
               {mode === 'BAN' && isSelected && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-gray-600/40 text-white/50 text-[10px] font-black px-4 py-1 rotate-[-12deg] tracking-[0.2em] border border-white/5">BANNED</div>
-                </div>
+                <div className="absolute inset-0" style={{ background: 'repeating-linear-gradient(-45deg, transparent 0 10px, rgba(255,70,85,0.45) 10px 12px)' }} />
+              )}
+
+              {mode === 'BAN' && isSelected && (
+                <span className="absolute top-1.5 left-1.5 h-6 px-2 inline-flex items-center justify-center bg-[#101418] text-[#ff4655] text-xs font-extrabold">BAN</span>
               )}
 
               {isPicked && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className={`text-[10px] font-black px-4 py-1 rotate-[-12deg] tracking-[0.2em] border ${
-                    isLatestPick ? 'bg-[#FF4655] text-white border-[#FF4655]' : 'bg-[#FF4655]/20 text-[#FF4655]/70 border-[#FF4655]/40'
-                  }`}>PICKED</div>
-                </div>
+                <span className={`absolute top-1.5 left-1.5 h-6 px-2 inline-flex items-center justify-center text-xs font-extrabold ${
+                  isLatestPick ? 'bg-[#ff4655] text-white' : 'bg-[#101418] text-[#ff4655]/70'
+                }`}>決定</span>
               )}
 
-              <div className={`relative z-10 mb-2 text-sm font-black tracking-[0.1em] transition-colors ${
-                isResult || (isPicked && isLatestPick) ? 'text-white' : 
-                isPicked ? 'text-[#FF4655]/60' : 
-                (mode === 'BAN' && isSelected) ? 'text-white/20' : 'text-white'
+              <div className={`relative z-10 mb-2 text-sm font-extrabold transition-colors ${
+                isResult || (isPicked && isLatestPick) ? 'text-white' :
+                isPicked ? 'text-[#ff4655]/70' :
+                (mode === 'BAN' && isSelected) ? 'text-white/30' : 'text-white'
               }`}>
                 {map.name}
               </div>
@@ -220,33 +222,30 @@ export function MapGacha({ onBack }: Props) {
             onClick={finalPick ? confirmPick : startRoll}
             disabled={isRolling || (availableMaps.length < 2 && !finalPick)}
             className={`
-              w-full py-5 font-black tracking-[0.4em] uppercase transition-all text-lg
-              ${availableMaps.length < 2 && !finalPick ? 'bg-white/5 text-gray-600 cursor-not-allowed' : 'bg-[#FF4655] text-white hover:bg-[#ff5e6a] shadow-[0_10px_20px_rgba(255,70,85,0.2)]'}
+              w-full h-16 flex items-center justify-center font-extrabold transition-colors text-xl
+              ${availableMaps.length < 2 && !finalPick ? 'bg-[#1a2027] text-[#9aa3ad] cursor-not-allowed' : 'bg-[#ff4655] text-white hover:bg-[#ff5e6b]'}
               ${isRolling ? 'animate-pulse' : ''}
             `}
           >
-            {isRolling ? 'Shuffling Maps...' : finalPick ? 'Confirm Immediately' : availableMaps.length < 2 ? 'Need 2+ Maps' : 'Initiate Selection'}
+            {isRolling ? '抽選中…' : finalPick ? 'すぐに決定する' : availableMaps.length < 2 ? 'マップを2つ以上残してください' : 'マップを回す'}
           </button>
 
           {finalPick && (
-            <div className="absolute -bottom-4 left-0 w-full h-1 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full bg-[#FF4655] transition-all duration-100 ease-linear" style={{ width: `${timerProgress}%` }} />
+            <div className="absolute -bottom-3 left-0 w-full h-1 bg-white/10 overflow-hidden">
+              <div className="h-full bg-[#ff4655] transition-all duration-100 ease-linear" style={{ width: `${timerProgress}%` }} />
             </div>
           )}
         </div>
 
         <div className="flex flex-col items-center gap-4">
-          <div className="flex gap-8 text-[10px] font-bold text-gray-500 uppercase tracking-widest bg-black/20 px-8 py-3 rounded-full border border-white/5">
-            <span>Mode: <span className={mode === 'PICK' ? 'text-[#FF4655]' : 'text-[#46CBFF]'}>{mode}</span></span>
-            <span>Target: <span className="text-white">{availableMaps.length}</span></span>
-            <span>History: <span className="text-[#FF4655]/70">{pickedIds.length}</span></span>
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm font-bold text-[#9aa3ad] bg-[#1a2027] px-6 py-3">
+            <span>選び方 <span className={mode === 'PICK' ? 'text-[#ff4655]' : 'text-[#3fb7ec]'}>{mode}</span></span>
+            <span>候補 <span className="text-[#ece8e1]">{availableMaps.length}</span></span>
+            <span>決定済み <span className="text-[#ff4655]">{pickedIds.length}</span></span>
           </div>
 
-          <button 
-            onClick={() => navigate("/")} 
-            className="text-xs text-white/60 hover:text-white underline transition-colors uppercase tracking-widest"
-          >
-            ← Back to HOME
+          <button onClick={() => navigate("/")} className={backLink}>
+            トップへ戻る
           </button>
         </div>
       </div>

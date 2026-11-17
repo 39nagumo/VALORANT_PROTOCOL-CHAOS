@@ -11,6 +11,14 @@ import { SubLinks } from './components/SubLinks';
 import { CreateRoomButton, RoomPage } from './room/RoomPage';
 const logoImg = "/assets/CHAOS_fix.png";
 
+// 上の帯から行ける画面（ページ構成は今までと同じ）
+const NAV = [
+  { to: '/gacha', label: 'ひとりで回す' },
+  { to: '/maps', label: 'マップ抽選' },
+  { to: '/binds', label: '縛り一覧' },
+  { to: '/submit', label: '縛りを投稿' },
+];
+
 const SITE_TITLE = 'VALORANT Custom CHAOS Gacha';
 const PAGE_TITLES: Record<string, string> = {
   '/gacha': 'ガチャ',
@@ -110,18 +118,12 @@ function App() {
     setResult(newResult);
   };
 
-  const isCompactHeader = path !== '/' && path !== '/gacha';
+  // トップはロゴを大きな帯（ヒーロー）の中に置くので、上の見出しは出さない
+  const isTop = path === '/';
+  const isRoom = path.startsWith('/r/');
 
   return (
-    <div className="min-h-screen bg-[#0F1923] text-[#ECE8E1] font-sans selection:bg-[#FF4655] selection:text-white overflow-x-hidden relative">
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full bg-[url('/assets/val-bg-pattern.png')] bg-repeat opacity-[0.03]" />
-        <div className="absolute top-[-10%] right-[-5%] w-[50%] h-[120%] bg-[#FF4655]/5 skew-x-[-12deg]" />
-        <div className="absolute bottom-[-10%] left-[-5%] w-[30%] h-[100%] bg-white/[0.02] skew-x-[-12deg]" />
-        <div className="absolute top-[20%] left-0 w-full h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-        <div className="absolute top-[60%] left-0 w-full h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-      </div>
-
+    <div className="min-h-screen bg-[#101418] text-[#ece8e1] font-lobby selection:bg-[#ff4655] selection:text-white overflow-x-hidden relative">
       <style dangerouslySetInnerHTML={{ __html: `
         .bind-box-uniform, .min-h-\\[130px\\], .min-h-\\[150px\\] {
           height: 150px !important;
@@ -138,46 +140,43 @@ function App() {
       `}} />
 
       {loading && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0F1923]/90 backdrop-blur-md">
-          <div className="text-center">
-            <div className="relative w-24 h-24 mx-auto mb-8">
-              <div className="absolute inset-0 border-[1px] border-white/10 rounded-full"></div>
-              <div className="absolute inset-0 border-t-2 border-[#FF4655] rounded-full animate-spin"></div>
-              <div className="absolute inset-[15%] border-[1px] border-white/5 rounded-full animate-pulse"></div>
-            </div>
-            <div className="text-[#FF4655] font-black text-sm tracking-[0.5em] uppercase animate-pulse">Initializing Protocol</div>
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#101418]/95">
+          {/* 攻めの赤と守りの青が左右から寄ってくる */}
+          <div className="relative w-64 h-2 overflow-hidden bg-white/10">
+            <div className="absolute inset-y-0 left-0 w-1/2 bg-[#ff4655] animate-pulse" />
+            <div className="absolute inset-y-0 right-0 w-1/2 bg-[#3fb7ec] animate-pulse" />
           </div>
+          <p className="mt-5 text-xl font-extrabold">抽選中…</p>
         </div>
       )}
 
-      <main className={`relative z-10 container mx-auto px-4 min-h-screen flex flex-col ${path.startsWith('/r/') ? 'max-w-[1760px] py-4' : 'max-w-7xl py-8'}`}>
-        <header className={`transition-all duration-700 ease-out ${isCompactHeader ? 'mb-4 text-left flex items-end gap-6' : 'mb-0 mt-0 text-center'}`}>
-          <button type="button" onClick={() => navigate('/')} className="inline-block relative" aria-label="トップへ">
-            <img
-              src={logoImg}
-              alt="CHAOS GACHA LOGO"
-              className={`transition-all duration-500 object-contain mx-auto ${
-                isCompactHeader
-                  ? 'h-16 md:h-20'
-                  : 'h-40 md:h-64'
-              }`}
-            />
-          </button>
+      {!isTop && (
+        <header className="relative z-0 bg-[#0b0e11] border-b border-white/10">
+          <div className={`mx-auto px-4 h-16 md:h-20 flex items-center gap-6 ${isRoom ? 'max-w-[1760px]' : 'max-w-7xl'}`}>
+            <button type="button" onClick={() => navigate('/')} className="h-full py-2" aria-label="トップへ">
+              <img src={logoImg} alt="CHAOS GACHA" className="h-full w-auto object-contain" />
+            </button>
+            <nav className="ml-auto hidden sm:flex items-stretch h-full text-sm font-bold">
+              {NAV.map(item => (
+                <button key={item.to} type="button" onClick={() => navigate(item.to)}
+                  className={`px-4 flex items-center border-b-2 transition-colors ${path === item.to ? 'border-[#ff4655] text-[#ece8e1]' : 'border-transparent text-[#9aa3ad] hover:text-[#ece8e1]'}`}>
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+          </div>
         </header>
+      )}
+
+      <main className={`relative z-10 mx-auto px-4 min-h-screen flex flex-col ${isTop ? 'max-w-none px-0' : isRoom ? 'max-w-[1760px] py-4' : 'max-w-7xl py-8'}`}>
 
         <div className="flex-grow">
           <Routes>
             <Route path="/" element={<LandingPage />} />
 
             <Route path="/gacha" element={
-              <div className="animate-in fade-in slide-in-from-bottom-12 duration-1000 max-w-2xl mx-auto">
-                <div className="relative group">
-                  <div className="absolute -top-2 -left-2 w-8 h-8 border-t-2 border-l-2 border-[#FF4655] z-20" />
-                  <div className="absolute -bottom-2 -right-2 w-8 h-8 border-b-2 border-r-2 border-[#FF4655] z-20" />
-                  <div className="relative bg-[#172129]/90 border border-white/10 p-8 md:p-12 backdrop-blur-2xl shadow-2xl">
-                    <GachaForm onSubmit={(names) => handleRunGacha(names)} loading={loading} initialNames={currentNames} />
-                  </div>
-                </div>
+              <div className="max-w-2xl mx-auto w-full">
+                <GachaForm onSubmit={(names) => handleRunGacha(names)} loading={loading} initialNames={currentNames} />
                 <CreateRoomButton />
                 <SubLinks />
               </div>
@@ -224,28 +223,13 @@ function App() {
           </Routes>
         </div>
 
-        <footer className="mt-auto py-12 text-center relative">
-          <div className="max-w-4xl mx-auto px-4 opacity-40 hover:opacity-100 transition-opacity duration-500">
-            <div className="text-[9px] text-gray-500 leading-relaxed text-center normal-case tracking-normal max-w-2xl mx-auto mb-8 border-t border-white/5 pt-8">
-              <p className="mb-2">
-                本サイトはファン制作の非公式サイトです。使用されているゲーム画像や商標等の知的財産は、すべてライアットゲームズ社に帰属します。
-              </p>
-              <p>
-                VALORANT CHAOS GACHA isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties.
-              </p>
-            </div>
-
-            <div className="flex flex-col items-center gap-3 text-[10px] font-black tracking-[0.2em] text-gray-600">
-              <p>© 2026 PROTOCOL:CHAOS</p>
-              <a
-                href="https://x.com/39nagumo"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-[#FF4655] transition-colors duration-300 flex items-center justify-center gap-2 border border-white/5 px-4 py-2 bg-white/5"
-              >
-                AUTHOR // @39nagumo
-              </a>
-            </div>
+        <footer className="mt-auto pt-16 pb-10 px-4">
+          <div className="max-w-3xl mx-auto border-t border-white/10 pt-6 text-center text-[11px] leading-relaxed text-[#9aa3ad]/70">
+            <p className="mb-1">本サイトはファン制作の非公式サイトです。使用されているゲーム画像や商標等の知的財産は、すべてライアットゲームズ社に帰属します。</p>
+            <p>VALORANT CHAOS GACHA isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties.</p>
+            <p className="mt-4 text-xs">
+              作った人：<a href="https://x.com/39nagumo" target="_blank" rel="noopener noreferrer" className="font-bold text-[#ece8e1] hover:text-[#ff4655]">南雲 朔（@39nagumo）</a>
+            </p>
           </div>
         </footer>
       </main>

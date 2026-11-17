@@ -4,5 +4,6 @@
 
 body {
   margin: 0;
-  background-color: #0F1923;
+  background-color: #101418;
+  word-break: auto-phrase;
 }

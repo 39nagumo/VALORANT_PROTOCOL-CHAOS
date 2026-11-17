@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import { GachaResult } from '../logic/gacha';
 import { AgentCard } from './AgentCard';
+import { btnBlue, btnGhost, btnLight, btnPrimary } from '../ui/lobby';
 
 // 見た目どおりに画像化するため、ブラウザ自身の描画を使う html-to-image で保存する
 import { toPng } from 'html-to-image';
@@ -109,7 +110,7 @@ export function GachaResultView({
     try {
       const dataUrl = await toPng(el, {
         pixelRatio: 2,
-        backgroundColor: '#0F1923',
+        backgroundColor: '#101418',
         cacheBust: false,
         // 鍵・振り直しのボタンは画像に入れない
         filter: node => !(node instanceof HTMLElement && node.hasAttribute('data-html2canvas-ignore')),
@@ -128,40 +129,44 @@ export function GachaResultView({
 
   return (
     <div className="flex flex-col gap-4 items-center w-full max-w-[1400px] mx-auto">
+      <div className="w-fit max-w-full flex flex-col gap-4">
+      {/* 攻めと守りの切り替え（画像には入れない）。左が攻め・右が守り */}
+      <div className="flex w-full">
+        <button
+          onClick={() => setSide('ATTACKER')}
+          className={`flex-1 h-12 flex items-center justify-center text-lg font-extrabold transition-colors ${
+            side === 'ATTACKER' ? 'bg-[#ff4655] text-white' : 'bg-[#1a2027] text-[#9aa3ad] hover:text-[#ece8e1]'
+          }`}
+        >
+          ATTACKER
+        </button>
+        <button
+          onClick={() => setSide('DEFENDER')}
+          className={`flex-1 h-12 flex items-center justify-center text-lg font-extrabold transition-colors ${
+            side === 'DEFENDER' ? 'bg-[#3fb7ec] text-[#101418]' : 'bg-[#1a2027] text-[#9aa3ad] hover:text-[#ece8e1]'
+          }`}
+        >
+          DEFENDER
+        </button>
+      </div>
+
+      {/* スマホではカードの並びを横にずらして見る（保存する画像の大きさは変えない） */}
+      <div className="max-w-full overflow-x-auto">
       <div
         ref={containerRef}
-        className="bg-[#0F1923] p-4 md:p-5 rounded border border-white/10 relative overflow-hidden"
-        style={{ minWidth: '1100px' }} 
+        className="bg-[#101418] p-4 md:p-5 relative overflow-hidden"
+        style={{ minWidth: '1100px' }}
       >
-        <div className="absolute top-4 left-4 z-20 flex bg-black/40 p-1 rounded border border-white/10">
-          <button
-            onClick={() => setSide('ATTACKER')}
-            className={`px-3 py-1 text-[10px] font-black tracking-tighter transition-all ${
-              side === 'ATTACKER' ? 'bg-[#FF4655] text-white' : 'text-white/40 hover:text-white'
-            }`}
-          >
-            ATTACKER
-          </button>
-          <button
-            onClick={() => setSide('DEFENDER')}
-            className={`px-3 py-1 text-[10px] font-black tracking-tighter transition-all ${
-              side === 'DEFENDER' ? 'bg-[#46CBFF] text-white' : 'text-white/40 hover:text-white'
-            }`}
-          >
-            DEFENDER
-          </button>
-        </div>
-
-        <div className="absolute top-1 right-3 text-[10px] text-gray-500 font-mono">
-          SEED: {initialResult.seed}
+        <div className="absolute top-2 right-3 text-[11px] text-[#9aa3ad]/60 font-bold">
+          シード {initialResult.seed}
         </div>
 
         <div className="mb-4 text-center">
           <div className="cr-theme flex justify-center pt-2 pb-1">
             <div className={`cr-tag cr-tag-sm cr-tag-${side === 'ATTACKER' ? 'ATK' : 'DEF'}`}>{side}</div>
           </div>
-          <p className="text-[10px] md:text-xs text-gray-300/60 tracking-[0.2em] uppercase mt-2 leading-relaxed">
-            5 Agents + Constraints (Per Player)
+          <p className="text-sm text-[#9aa3ad] mt-2 font-bold">
+            エージェントと縛りが1人1つずつ
           </p>
         </div>
 
@@ -190,58 +195,36 @@ export function GachaResultView({
           </div>
         </section>
 
-        <div className="mt-4 text-center text-[9px] font-mono uppercase tracking-widest leading-relaxed">
-          <span className="text-gray-500">VALORANT CUSTOM</span>{' '}
-          <span className={`transition-colors ${side === 'ATTACKER' ? 'text-[#FF4655]/40' : 'text-[#46CBFF]/40'}`}>CHAOS GACHA</span>
+        <div className="mt-4 text-center text-[11px] font-bold text-[#9aa3ad]/50">
+          VALORANT CHAOSガチャ
         </div>
+      </div>
+      </div>
       </div>
 
       <div className={`flex flex-col items-center gap-2 w-full mt-2 transition-opacity duration-1000 ${visibleCount >= 5 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         <div className="flex flex-wrap gap-2 justify-center w-full">
-          <button 
-            onClick={handleSaveImage} 
-            disabled={saving} 
-            className="bg-white text-black font-black text-sm px-6 py-2 rounded hover:bg-gray-200 transition-colors"
-          >
-            {saving ? 'Saving...' : 'Save (PNG)'}
+          <button onClick={() => onRetry(lockedIndices)} className={btnPrimary}>
+            振り直す
           </button>
-          
-          <button 
-            onClick={() => onRetry(lockedIndices)} 
-            className="bg-[#FF4655] text-white font-black text-sm px-8 py-2 rounded hover:bg-[#ff5e6a] transition-colors"
-          >
-            　RE-ROLL　
+          <button onClick={handleSaveImage} disabled={saving} className={btnLight}>
+            {saving ? '保存中…' : '画像を保存'}
           </button>
-
-          <button 
-            onClick={onViewMap} 
-            className="bg-[#172129] border border-white/20 text-white font-black text-sm px-8 py-2 rounded hover:bg-[#222d37] transition-colors"
-          >
-            SELECT MAP
-          </button>
-          
-          <button 
-            onClick={onViewBinds} 
-            className="border border-white/20 text-white/60 font-bold text-sm px-6 py-2 rounded hover:bg-white/5 hover:text-white transition-all"
-          >
-            View Binds List
+          <button onClick={onViewMap} className={btnBlue}>
+            マップを選ぶ
           </button>
         </div>
+        <p className="text-xs text-[#9aa3ad] mt-1">鍵をかけた縛りは「振り直す」で変わりません</p>
 
-        {/* ✅ フッターの導線ボタン */}
-        <div className="mt-6 flex items-center gap-12 border-t border-white/5 pt-6 w-full max-w-lg justify-center">
-          <button 
-            onClick={() => navigate("/")} 
-            className="text-[11px] font-black uppercase tracking-widest text-white/90 hover:text-white transition-colors"
-          >
-            ← Back to HOME
+        <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-white/10 pt-6 w-full max-w-lg justify-center">
+          <button onClick={() => navigate("/")} className={btnGhost}>
+            トップへ戻る
           </button>
-          
-          <button 
-            onClick={onNavigateToSubmit}
-            className="text-[11px] font-black italic uppercase tracking-[0.2em] text-cyan-500/70 hover:text-cyan-400 transition-all"
-          >
-            Suggest a New Bind →
+          <button onClick={onViewBinds} className={btnGhost}>
+            縛り一覧
+          </button>
+          <button onClick={onNavigateToSubmit} className={btnGhost}>
+            縛りを投稿
           </button>
         </div>
       </div>

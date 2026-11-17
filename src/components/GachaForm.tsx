@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { btnPrimary } from '../ui/lobby';
 
 interface Props {
     onSubmit: (names: string[]) => void;
@@ -23,45 +24,35 @@ export function GachaForm({ onSubmit, loading, initialNames }: Props) {
     };
 
     return (
-        <div className="bg-[#1F2631] border border-[#FF4655]/30 p-6 md:p-8 rounded-sm shadow-[0_0_20px_rgba(0,0,0,0.5)] bg-opacity-90 backdrop-blur-sm relative overflow-hidden">
-            {/* Decorative borders */}
-            <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-[#FF4655]" />
-            <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-[#FF4655]" />
-            <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-[#FF4655]" />
-            <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-[#FF4655]" />
+        <div className="bg-[#1a2027] p-6 md:p-8">
+            <h2 className="text-2xl md:text-3xl font-extrabold mb-1">メンバーを入れる</h2>
+            <p className="text-sm text-[#9aa3ad] mb-6">5人の名前を入れて回します。空いた所は「Player 1」などになります。</p>
 
-            <h2 className="text-xl font-bold mb-6 text-center uppercase tracking-wider text-white">
-                Enter Squad Members
-            </h2>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-2">
                 {names.map((name, i) => (
-                    <div key={i} className="relative group">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-mono text-sm">
-                            0{i + 1}
-                        </span>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => handleChange(i, e.target.value)}
-                            placeholder={`Player ${i + 1}`}
-                            className="w-full bg-[#0F1923] border border-gray-600 text-white pl-10 pr-4 py-3 focus:border-[#FF4655] focus:ring-1 focus:ring-[#FF4655] outline-none transition-all placeholder-gray-700 font-bold tracking-wide skew-x-[-10deg] md:skew-x-0"
-                        />
-                    </div>
+                    <input
+                        key={i}
+                        type="text"
+                        value={name}
+                        onChange={(e) => handleChange(i, e.target.value)}
+                        placeholder={`Player ${i + 1}`}
+                        aria-label={`${i + 1}人目の名前`}
+                        className="w-full h-14 bg-[#101418] border-l-[6px] border-[#ff4655] text-[#ece8e1] px-4 text-lg font-bold outline-none placeholder:text-[#9aa3ad]/50 focus:bg-[#222a33] transition-colors"
+                    />
                 ))}
 
                 <button
                     type="submit"
                     disabled={loading}
-                    className="w-full mt-8 bg-[#FF4655] hover:bg-[#D93645] text-white font-black py-4 px-8 uppercase tracking-widest transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_0_#9d1c28]"
+                    className={`${btnPrimary} w-full mt-6`}
                 >
                     {loading ? (
-                        <span className="flex items-center justify-center gap-2">
+                        <>
                             <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
-                            Initialising...
-                        </span>
+                            抽選中…
+                        </>
                     ) : (
-                        'INITIATE PROTOCOL // GACHA'
+                        'ガチャを回す'
                     )}
                 </button>
             </form>

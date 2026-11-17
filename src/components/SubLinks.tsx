@@ -1,20 +1,24 @@
 import { useNavigate } from 'react-router-dom';
 
 const LINKS = [
-  { to: '/maps', label: 'Map Selection' },
-  { to: '/binds', label: 'Binds Database' },
-  { to: '/submit', label: 'Suggest a Bind' },
+  { to: '/maps', label: 'マップ抽選', note: 'マップだけ回す' },
+  { to: '/binds', label: '縛り一覧', note: '全部の縛りを見る' },
+  { to: '/submit', label: '縛りを投稿', note: 'アイデアを送る' },
 ];
 
 export function SubLinks() {
   const navigate = useNavigate();
 
   return (
-    <div className="mt-12 flex flex-wrap justify-center gap-8">
+    <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-2">
       {LINKS.map(link => (
-        <button key={link.to} onClick={() => navigate(link.to)} className="group relative flex items-center gap-4 px-8 py-3 text-[11px] font-black tracking-[0.25em] uppercase transition-all">
-          <span className="relative z-10 text-white/40 group-hover:text-white transition-colors">{link.label}</span>
-          <div className="w-8 h-px bg-[#FF4655] relative z-10 group-hover:w-12 transition-all" />
+        <button key={link.to} onClick={() => navigate(link.to)}
+          className="group flex items-center justify-between gap-4 bg-[#1a2027] hover:bg-[#222a33] px-5 py-4 text-left transition-colors">
+          <span>
+            <span className="block font-extrabold">{link.label}</span>
+            <span className="block text-xs text-[#9aa3ad] mt-0.5">{link.note}</span>
+          </span>
+          <span className="text-[#9aa3ad] group-hover:text-[#ff4655] group-hover:translate-x-1 transition-all" aria-hidden="true">→</span>
         </button>
       ))}
     </div>

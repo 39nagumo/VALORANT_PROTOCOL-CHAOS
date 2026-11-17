@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from "react-router-dom";
 import bindsRaw from '../data/binds.json';
 import { isNewBind } from '../data/bindsNew';
+import { backLink, btnGhost, pageTitle } from '../ui/lobby';
 // @ts-ignore
 import html2canvas from 'html2canvas';
 
@@ -58,7 +59,7 @@ export function BindsGallery({ onBack, onNavigateToSubmit }: Props) {
         setIsSaving(true);
         try {
             const canvas = await html2canvas(modalRef.current, {
-                backgroundColor: '#0F1923',
+                backgroundColor: '#101418',
                 scale: 2,
                 useCORS: true,
                 onclone: (clonedDoc) => {
@@ -77,44 +78,39 @@ export function BindsGallery({ onBack, onNavigateToSubmit }: Props) {
 
     return (
         <div className="animate-fade-in relative">
-            <button
-                onClick={onBack}
-                className="mb-6 flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-            >
-                ← Back
+            <button onClick={onBack} className={`${backLink} mb-3`}>
+                ← 戻る
             </button>
 
-            <div className="flex justify-between items-center mb-8 border-b-2 border-gray-700 pb-4">
-                <h2 className="text-3xl font-black uppercase italic">
-                    Binds Database（縛り内容一覧）
-                </h2>
-                <button 
-                    onClick={onNavigateToSubmit}
-                    className="text-[11px] font-black uppercase tracking-[0.2em] px-4 py-2 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 transition-all rounded-sm"
-                >
-                    アイデア募集中 →
+            <div className="flex flex-wrap justify-between items-end gap-4 mb-8">
+                <div>
+                    <h2 className={pageTitle}>縛り一覧</h2>
+                    <p className="text-sm text-[#9aa3ad] mt-2">押すと大きく表示して、画像で保存できます</p>
+                </div>
+                <button onClick={onNavigateToSubmit} className={btnGhost}>
+                    縛りを投稿 →
                 </button>
             </div>
 
-            {/* ✅ space-y-12 は維持しつつ、pb-20 を pb-4 に変更して下の空きを詰めました */}
-            <div className="space-y-12 pb-4">
+            <div className="space-y-10 pb-4">
                 {categories.map(cat => {
                     if (!bindsRaw[cat]) return null;
                     return (
                         <div key={cat}>
-                            <h3 className={`text-2xl font-bold uppercase tracking-widest mb-4 pl-4 border-l-4 ${getCategoryColor(cat).split(' ')[0]}`}>
+                            <h3 className={`text-2xl font-extrabold mb-3 pl-3 border-l-[6px] ${getCategoryColor(cat).split(' ')[0]} ${getCategoryColor(cat).split(' ')[1]}`}>
                                 {cat}
+                                <span className="ml-3 text-sm font-bold text-[#9aa3ad]">{bindsRaw[cat].length}個</span>
                             </h3>
-                            <div className="grid md:grid-cols-2 gap-4">
+                            <div className="grid md:grid-cols-2 gap-2">
                                 {bindsRaw[cat].map((text, i) => {
                                     const bindId = getBindId(cat, i);
                                     return (
                                         <div
                                             key={i}
                                             onClick={() => setSelectedBind({ text, category: cat, id: bindId })}
-                                            className={`relative bg-[#1F2631] p-4 rounded border hover:border-white/20 hover:bg-[#2C3545] cursor-pointer transition-all active:scale-95 flex justify-between items-start gap-4 ${isNewBind(cat, i) ? 'border-[#46CBFF]/50 pr-16' : 'border-transparent'}`}
+                                            className={`relative bg-[#1a2027] p-4 border hover:bg-[#222a33] cursor-pointer transition-colors flex justify-between items-start gap-4 ${isNewBind(cat, i) ? 'border-[#46CBFF]/50 pr-16' : 'border-transparent'}`}
                                         >
-                                            <p className="text-sm font-medium leading-relaxed">{text}</p>
+                                            <p className="text-sm font-bold leading-relaxed text-[#ece8e1]">{text}</p>
                                             {isNewBind(cat, i) && (
                                                 <span className="absolute top-2 right-2 inline-flex items-center justify-center h-5 px-2 pb-[2px] rounded-full bg-[#46CBFF] text-[#0F1923] text-[11px] font-black leading-none">NEW</span>
                                             )}
@@ -129,28 +125,26 @@ export function BindsGallery({ onBack, onNavigateToSubmit }: Props) {
 
             {/* ✅ 下部のホーム戻りボタン周りの pb-20 を pb-4 に変更 */}
             <div className="flex justify-center pb-4 pt-8">
-                <button 
-                    onClick={() => navigate("/")} 
-                    className="text-xs text-white/60 hover:text-white underline transition-colors uppercase tracking-[0.2em] font-bold"
-                >
-                    ← Back to HOME
+                <button onClick={() => navigate("/")} className={backLink}>
+                    トップへ戻る
                 </button>
             </div>
 
             {/* Modal - 詳細表示 */}
             {selectedBind && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in" onClick={() => setSelectedBind(null)}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 animate-fade-in" onClick={() => setSelectedBind(null)}>
                     <div
                         ref={modalRef}
-                        className="bg-[#0F1923] border border-white/10 p-10 max-w-lg w-full relative shadow-[0_0_50px_rgba(0,0,0,0.5)] transform scale-100 transition-transform"
+                        className={`bg-[#101418] border-t-[6px] ${getCategoryColor(selectedBind.category).split(' ')[1]} p-10 max-w-lg w-full relative`}
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="absolute top-4 right-4 no-export">
                             <button
-                                className="text-gray-500 hover:text-cyan-400 transition-colors p-2 border border-transparent hover:border-cyan-400/30 rounded"
+                                className="text-[#9aa3ad] hover:text-[#ece8e1] transition-colors p-2 hover:bg-white/5"
                                 onClick={handleDownload}
                                 disabled={isSaving}
-                                title="Download Image"
+                                title="画像を保存"
+                                aria-label="画像を保存"
                             >
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -160,18 +154,18 @@ export function BindsGallery({ onBack, onNavigateToSubmit }: Props) {
                             </button>
                         </div>
 
-                        <div className="absolute bottom-4 right-6 text-[10px] font-mono text-white/25 tracking-widest">
+                        <div className="absolute bottom-4 right-6 text-[11px] font-bold text-white/25">
                             #{selectedBind.id}
                         </div>
 
                         <div className="flex flex-col items-center text-center">
-                            <div className={`px-4 py-1 mb-6 text-[10px] font-black tracking-[0.2em] uppercase border ${getCategoryColor(selectedBind.category)}`}>
+                            <div className={`h-7 px-4 mb-6 inline-flex items-center justify-center text-sm font-extrabold border ${getCategoryColor(selectedBind.category)}`}>
                                 {selectedBind.category}
                             </div>
-                            <h3 className="text-2xl md:text-3xl font-black leading-relaxed mb-8 italic uppercase tracking-tight whitespace-pre-wrap">
+                            <h3 className="text-2xl md:text-3xl font-extrabold leading-relaxed mb-4 whitespace-pre-wrap text-[#ece8e1]">
                                 {selectedBind.text.replace(/^"|"$/g, '')}
                             </h3>
-                            <div className="w-12 h-[2px] bg-[#FF4655]" />
+                            <p className="text-xs font-bold text-[#9aa3ad]/60">VALORANT CHAOSガチャ</p>
                         </div>
                     </div>
                 </div>
