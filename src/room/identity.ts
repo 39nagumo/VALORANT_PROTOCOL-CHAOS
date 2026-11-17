@@ -1,8 +1,9 @@
-import { UID_PATTERN } from '../logic/room';
+import { UID_PATTERN, isRankId, type RankId } from '../logic/room';
 
 // このブラウザ（またはOBS）を表す秘密のID。OBS用URLの末尾になる
 const UID_KEY = 'chaos-gacha:uid';
 const NAME_KEY = 'chaos-gacha:name';
+const RANK_KEY = 'chaos-gacha:rank';
 
 const read = (key: string) => { try { return localStorage.getItem(key); } catch { return null; } };
 const write = (key: string, v: string) => { try { localStorage.setItem(key, v); } catch { /* 保存できない環境 */ } };
@@ -26,5 +27,9 @@ export function adoptUid(input: string): boolean {
 
 export const getSavedName = () => read(NAME_KEY) ?? '';
 export const saveName = (name: string) => write(NAME_KEY, name);
+
+/** 自己申告の最高ランク（次に参加するときの初期値） */
+export const getSavedRank = (): RankId | null => { const v = read(RANK_KEY); return isRankId(v) ? v : null; };
+export const saveRank = (rank: RankId | null) => write(RANK_KEY, rank ?? '');
 
 export const overlayUrl = (uid: string) => `${location.origin}/me/${uid}`;

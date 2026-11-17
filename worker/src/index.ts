@@ -5,7 +5,7 @@ import { MAPS } from '../../src/data/maps';
 import {
   ClientMessage, Member, RoomEvent, RoomState, ServerMessage, Side, TeamRoll,
   TEAM_SIZE, EVENT_LEAD_MS, eventDuration,
-  UID_PATTERN, ROOM_PATTERN, NAME_MAX, mapPool,
+  UID_PATTERN, ROOM_PATTERN, NAME_MAX, mapPool, isRankId, rankPoints, balancedSplit, type RankId,
 } from '../../src/logic/room';
 
 export interface Env {
@@ -146,7 +146,7 @@ export class Room extends DurableObject<Env> {
     try {
       if (this.tooFast(ws)) throw new UserError('操作が続いています。少し時間を空けてください');
       if (msg.type === 'join') {
-        await this.join(ws, att, msg.name);
+        await this.join(ws, att, msg.name, msg.rank);
       } else {
         if (att.as !== 'page' || !att.memberId) throw new UserError('先にルームへ参加してください');
         const me = this.state.members.find(m => m.id === att.memberId);
@@ -177,9 +177,11 @@ export class Room extends DurableObject<Env> {
     return false;
   }
 
-  private async join(ws: WebSocket, att: Attachment, rawName: string) {
+  private async join(ws: WebSocket, att: Attachment, rawName: string, rawRank?: unknown) {
     const s = this.state!;
     const name = cleanName(rawName);
+    // ランクは送られてきたときだけ変える（null＝「選ばない」に戻す）
+    const rank: RankId | null | undefined = isRankId(rawRank) ? rawRank : rawRank === null ? null : undefined;
     if (!name) throw new UserError('名前を入力してください');
     const memberId = await publicIdOf(att.uid);
     const sameName = s.members.find(m => m.name === name && m.id !== memberId);
@@ -188,12 +190,13 @@ export class Room extends DurableObject<Env> {
     const existing = s.members.find(m => m.id === memberId);
     if (existing) {
       existing.name = name;
+      if (rank !== undefined) existing.rank = rank;
       for (const side of ['ATK', 'DEF'] as Side[]) {
         s.teams[side]?.slots.forEach(slot => { if (slot.memberId === memberId) slot.name = name; });
       }
     } else {
       if (s.members.length >= MEMBER_MAX) throw new UserError(`このルームは満員です（${MEMBER_MAX}人まで）`);
-      s.members.push({ id: memberId, name, seat: 'WATCH', online: false });
+      s.members.push({ id: memberId, name, seat: 'WATCH', online: false, rank: rank ?? null });
     }
     this.secrets[memberId] = att.uid;
     // 最初に参加した人（＝ルームを作った人）がルームの主
@@ -246,8 +249,11 @@ export class Room extends DurableObject<Env> {
         const rest = s.members.filter(m => m.seat === 'WATCH');
         const fill = [...shuffle(rest.filter(m => m.online)), ...shuffle(rest.filter(m => !m.online))];
         const players = shuffle([...seated, ...fill].slice(0, TEAM_SIZE * 2));
+        // 自己申告のランクの点数で、合計がなるべく等しくなるように分ける
+        const [atk, def] = balancedSplit(players, m => rankPoints(m.rank));
         s.members.forEach(m => { m.seat = 'WATCH'; });
-        players.forEach((m, i) => { m.seat = i < TEAM_SIZE ? 'ATK' : 'DEF'; });
+        atk.forEach(m => { m.seat = 'ATK'; });
+        def.forEach(m => { m.seat = 'DEF'; });
         break;
       }
       case 'roll': {

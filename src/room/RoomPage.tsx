@@ -3,10 +3,11 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { MAPS, mapImage } from '../data/maps';
 import {
   ROOM_PATTERN, NAME_MAX, TEAM_SIZE, eventDuration, mapPool,
-  type ClientMessage, type MapMode, type Member, type RoomState, type Seat, type Side,
+  RANKS, UNRANKED_POINTS, rankOf, rankPoints, teamPoints, isRankId,
+  type ClientMessage, type MapMode, type Member, type RankId, type RoomState, type Seat, type Side,
 } from '../logic/room';
 import { createRoom, useRoom, useServerNow } from './connection';
-import { adoptUid, getSavedName, getUid, overlayUrl, saveName } from './identity';
+import { adoptUid, getSavedName, getSavedRank, getUid, overlayUrl, saveName, saveRank } from './identity';
 import { MapReveal, RarityBadge, ROLE_LABEL, SIDE_LABEL, Stage, TeamReveal } from './reveal';
 import { RoleIcon } from './RoleIcon';
 import { HowToModal } from './HowToModal';
@@ -93,20 +94,32 @@ export function RoomPage() {
     return <>{howtoModal}<div className="text-center mt-24 text-[#FF4655] font-black tracking-[0.4em] animate-pulse">CONNECTING…</div></>;
   }
   if (!room.memberId) {
-    return <>{howtoModal}<JoinForm onJoin={name => room.act({ type: 'join', uid, name })} error={room.error}
+    return <>{howtoModal}<JoinForm onJoin={(name, rank) => room.act({ type: 'join', uid, name, rank })} error={room.error}
       onHowTo={() => setHowto('again')}
       onAdopt={input => { if (!adoptUid(input)) return false; setUid(getUid()); return true; }} /></>;
   }
   return <>{howtoModal}<RoomView room={room} state={room.state} uid={uid} memberId={room.memberId} /></>;
 }
 
+/** 最高ランクを選ぶ（段だけ。ダイヤ1〜3のような細かい区分は無し） */
+function RankSelect({ value, onChange, compact = false }: { value: RankId | null; onChange: (r: RankId | null) => void; compact?: boolean }) {
+  return (
+    <select value={value ?? ''} onChange={e => onChange(isRankId(e.target.value) ? e.target.value : null)}
+      className={`bg-[#0F1923] border border-gray-600 text-white font-bold outline-none focus:border-[#FF4655] ${compact ? 'px-2 py-1 text-xs' : 'w-full px-4 py-3'}`}>
+      <option value="">未設定（{UNRANKED_POINTS}点として数える）</option>
+      {RANKS.map(r => <option key={r.id} value={r.id}>{r.label}（{r.points}点）</option>)}
+    </select>
+  );
+}
+
 function JoinForm({ onJoin, onAdopt, onHowTo, error }: {
-  onJoin: (name: string) => void;
+  onJoin: (name: string, rank: RankId | null) => void;
   onHowTo: () => void;
   onAdopt: (input: string) => boolean;
   error: string | null;
 }) {
   const [name, setName] = useState(getSavedName);
+  const [rank, setRank] = useState<RankId | null>(getSavedRank);
   const [code, setCode] = useState('');
   const [adoptMsg, setAdoptMsg] = useState<string | null>(null);
   const submit = (e: React.FormEvent) => {
@@ -114,7 +127,8 @@ function JoinForm({ onJoin, onAdopt, onHowTo, error }: {
     const n = name.trim();
     if (!n) return;
     saveName(n);
-    onJoin(n);
+    saveRank(rank);
+    onJoin(n, rank);
   };
   return (
     <div className="max-w-md mx-auto mt-10 bg-[#172129]/90 border border-white/10 p-8">
@@ -130,6 +144,8 @@ function JoinForm({ onJoin, onAdopt, onHowTo, error }: {
         名前を入れて参加してください（次回からは自動で入ります）。<br />
         操作は代表1人でOK。ほかの人は参加してOBSにURLを入れるだけです。
       </p>
+      <label className="block text-sm font-bold mb-1.5">最高ランク<span className="text-gray-400 font-normal ml-2">チーム分けの目安になります</span></label>
+      <div className="mb-4"><RankSelect value={rank} onChange={setRank} /></div>
       <form onSubmit={submit} className="flex gap-2">
         <input value={name} maxLength={NAME_MAX} onChange={e => setName(e.target.value)} placeholder="名前"
           className="flex-1 bg-[#0F1923] border border-gray-600 text-white px-4 py-3 font-bold outline-none focus:border-[#FF4655]" />
@@ -216,6 +232,9 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
             const n = prompt('新しい名前', me?.name ?? '')?.trim();
             if (n) { saveName(n); act({ type: 'join', uid, name: n }); }
           }}>名前を変更</button>
+          <span className="inline-flex items-center gap-1.5 text-xs text-gray-400">最高ランク
+            <RankSelect compact value={me?.rank ?? null} onChange={r => { if (!me) return; saveRank(r); act({ type: 'join', uid, name: me.name, rank: r }); }} />
+          </span>
           <button className="text-gray-500 text-xs underline hover:text-white" onClick={() => {
             const next = state.owner === memberId ? state.members.find(m => m.id !== memberId) : null;
             const ownerNote = state.owner === memberId
@@ -393,6 +412,7 @@ const panel = (focus: boolean) =>
 
 function Roster({ members, memberId, owner, act, focus }: { members: Member[]; memberId: string; owner: string | null; act: Act; focus: boolean }) {
   const count = (seat: Seat) => members.filter(m => m.seat === seat).length;
+  const points = (seat: Seat) => teamPoints(members.filter(m => m.seat === seat));
   const iAmOwner = owner === memberId;
   return (
     <section className={panel(focus)}>
@@ -409,6 +429,9 @@ function Roster({ members, memberId, owner, act, focus }: { members: Member[]; m
               {m.id === owner && <span className="text-[#ffd83b] mr-1" title="ルームの主">★</span>}
               {m.name}{m.id === memberId && <span className="text-[11px] text-gray-500 font-normal ml-1">（あなた）</span>}
             </span>
+            <span className="shrink-0 text-[10px] text-gray-400" title="自己申告の最高ランク（点数）">
+              {rankOf(m.rank)?.label ?? '未設定'}<span className="text-gray-500">・{rankPoints(m.rank)}</span>
+            </span>
             <button onClick={() => act({ type: 'seat', memberId: m.id, seat: SEAT_NEXT[m.seat] })}
               className={`ml-auto shrink-0 w-12 text-[11px] font-black py-0.5 border ${SEAT_STYLE[m.seat]}`}>{SEAT_LABEL[m.seat]}</button>
             {iAmOwner && (m.id === memberId ? <span className="shrink-0 w-5" /> : (
@@ -422,10 +445,11 @@ function Roster({ members, memberId, owner, act, focus }: { members: Member[]; m
         ))}
       </ul>
       <div className="text-[11px] text-gray-500 mt-2">
-        <span className={count('ATK') > TEAM_SIZE ? 'text-amber-300 font-bold' : ''}>ATK {count('ATK')}/{TEAM_SIZE}</span>・
-        <span className={count('DEF') > TEAM_SIZE ? 'text-amber-300 font-bold' : ''}>DEF {count('DEF')}/{TEAM_SIZE}</span>
+        <span className={count('ATK') > TEAM_SIZE ? 'text-amber-300 font-bold' : ''}>ATK {count('ATK')}/{TEAM_SIZE}（{points('ATK')}点）</span>・
+        <span className={count('DEF') > TEAM_SIZE ? 'text-amber-300 font-bold' : ''}>DEF {count('DEF')}/{TEAM_SIZE}（{points('DEF')}点）</span>
       </div>
       <button className={`${btnGhost} w-full mt-2`} onClick={() => act({ type: 'randomTeams' })}>ランダムでチーム分け</button>
+      <p className="text-[10px] text-gray-500 mt-1">最高ランクの点数の合計が近くなるように分けます（未設定は{UNRANKED_POINTS}点）</p>
     </section>
   );
 }
