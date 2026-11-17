@@ -470,12 +470,12 @@ function Roster({ members, memberId, owner, act, focus }: { members: Member[]; m
           </li>
         ))}
       </ul>
-      <div className="text-[11px] text-gray-400 mt-2">
+      <div className="text-[13px] text-gray-300 mt-2">
         <span className={count('ATK') > TEAM_SIZE ? 'text-amber-300 font-bold' : ''}>ATK {count('ATK')}/{TEAM_SIZE}（{points('ATK')}点）</span>・
         <span className={count('DEF') > TEAM_SIZE ? 'text-amber-300 font-bold' : ''}>DEF {count('DEF')}/{TEAM_SIZE}（{points('DEF')}点）</span>・
         観戦 {count('WATCH')}人
       </div>
-      <p className="text-[10px] text-gray-500 mt-0.5">チーム分けは、最高ランクの点数の合計が近くなるように分けます（未設定は{UNRANKED_POINTS}点）{iAmOwner && '／× で名簿から外す（ルームの主だけ）'}</p>
+      <p className="text-xs text-gray-400 mt-1">チーム分けは、最高ランクの点数の合計が近くなるように分けます（未設定は{UNRANKED_POINTS}点）{iAmOwner && '／× で名簿から外す（ルームの主だけ）'}</p>
     </section>
   );
 }
@@ -564,6 +564,7 @@ function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealin
           })}
         </ul>
       ) : (
+        <>
         <ul className="space-y-1 flex-1">
           {seated.map(m => {
             const open = openId === m.id;
@@ -571,7 +572,7 @@ function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealin
               <li key={m.id} className={`bg-[#1f2a33] ${edge} ${open ? 'outline outline-1 outline-white/25' : ''}`}>
                 <button type="button" onClick={() => setOpenId(open ? null : m.id)} aria-expanded={open}
                   className="w-full h-10 flex items-center gap-2 px-2.5 text-left hover:bg-white/[0.03]">
-                  <b className="text-sm truncate">{m.name}</b>{pickNote(m)}
+                  <b className="text-base truncate">{m.name}</b><RankChip rank={m.rank} />{pickNote(m)}
                   <span className="ml-auto text-[11px] text-gray-400">{open ? '▴' : '縛りの指定 ▾'}</span>
                 </button>
                 {open && <SlotTools member={m} act={act} />}
@@ -581,6 +582,7 @@ function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealin
           {!seated.length && <li className="text-sm text-gray-400 p-2">左の名簿で「{side}」を押して振り分けてください</li>}
           {seated.length > 0 && seated.length < TEAM_SIZE && <li className="text-xs text-gray-500 p-1">あと{TEAM_SIZE - seated.length}人</li>}
         </ul>
+        </>
       )}
       {seated.length > TEAM_SIZE && <p className="text-xs text-amber-300 mt-2">{seated.length}人います。5人にすると回せます。</p>}
       {changed && seated.length <= TEAM_SIZE && <p className="text-xs text-amber-300 mt-2">メンバーが変わっています。回し直すと反映されます。</p>}
@@ -601,10 +603,10 @@ function MapPanel({ state, locked, act, focus, spinning }: { state: RoomState; l
         <h3 className="font-black text-lg italic tracking-wider text-[#ffd83b] mr-1">MAP</h3>
         <button disabled={locked || state.display?.kind === 'mapSetup'} onClick={() => act({ type: 'showMapSetup' })}
           className={`${ready ? btnGhost : btnYellow} py-1 px-3 text-xs`}>{ready ? '✓ OBSに表示中' : '① 候補をOBSに出す'}</button>
-        <div className={`flex bg-black/40 p-0.5 border border-white/10 ${ready ? '' : 'opacity-50'}`}>
+        <div className={`flex bg-black/40 p-1 border border-white/20 ${ready ? '' : 'opacity-50'}`}>
           {(['BAN', 'PICK'] as MapMode[]).map(m => (
             <button key={m} onClick={() => act({ type: 'mapMode', mode: m })}
-              className={`px-2 py-0.5 text-[11px] font-black whitespace-nowrap ${mode === m ? (m === 'PICK' ? 'bg-[#FF4655] text-white' : 'bg-[#46CBFF] text-[#0F1923]') : 'text-white/45 hover:text-white'}`}>
+              className={`px-3 h-8 inline-flex items-center text-[13px] font-black whitespace-nowrap ${mode === m ? (m === 'PICK' ? 'bg-[#FF4655] text-white' : 'bg-[#46CBFF] text-[#0F1923]') : 'text-white/45 hover:text-white'}`}>
               {m}<span className="font-bold ml-1">{m === 'PICK' ? '押したマップから選ぶ' : '押したマップを外す'}</span>
             </button>
           ))}
