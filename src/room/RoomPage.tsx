@@ -295,7 +295,7 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
         </div>
       )}
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(480px,600px)_minmax(0,1fr)] items-start [&>*]:min-w-0">
+      <div className="grid gap-3 lg:grid-cols-[minmax(560px,720px)_minmax(0,1fr)] items-start [&>*]:min-w-0">
         <Roster members={state.members} memberId={memberId} owner={state.owner ?? null} act={act} focus={step === 'gather'} />
         <div className="grid gap-3 [&>*]:min-w-0">
           <div className="grid gap-3 md:grid-cols-2 items-start [&>*]:min-w-0">
@@ -443,9 +443,9 @@ function Roster({ members, memberId, owner, act, focus }: { members: Member[]; m
         <span className="text-[11px] text-gray-400">押した所の陣営に入る</span>
         <button className={`${btnYellow} ml-auto text-base px-5 py-2.5`} onClick={() => act({ type: 'randomTeams' })}>ランダムでチーム分け</button>
       </div>
-      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-1">
+      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-2.5 gap-y-1.5">
         {members.map(m => (
-          <li key={m.id} className={`flex items-center gap-1.5 h-[30px] px-1.5 bg-[#1f2a33] border border-white/5 text-sm ${m.seat === 'WATCH' ? 'text-white/60' : ''}`}>
+          <li key={m.id} className={`flex items-center gap-1.5 h-11 px-2 bg-[#1f2a33] border border-white/5 text-base ${m.seat === 'WATCH' ? 'text-white/60' : ''}`}>
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${m.online ? 'bg-emerald-400' : 'bg-white/15'}`} title={m.online ? 'OBS起動中' : ''} />
             <span className="truncate font-bold min-w-0 flex-1">
               {m.id === owner && <span className="text-[#ffd83b] mr-0.5" title="ルームの主">★</span>}
@@ -455,7 +455,7 @@ function Roster({ members, memberId, owner, act, focus }: { members: Member[]; m
             <span className="inline-flex shrink-0 border border-white/20">
               {SEAT_ORDER.map(seat => (
                 <button key={seat} onClick={() => m.seat !== seat && act({ type: 'seat', memberId: m.id, seat })} aria-pressed={m.seat === seat}
-                  className={`w-7 h-5 inline-flex items-center justify-center text-[10px] font-black ${m.seat === seat ? SEAT_ON[seat] : 'text-white/40 hover:text-white hover:bg-white/10'}`}>
+                  className={`w-[38px] h-8 inline-flex items-center justify-center text-xs font-black ${m.seat === seat ? SEAT_ON[seat] : 'text-white/40 hover:text-white hover:bg-white/10'}`}>
                   {SEAT_LABEL[seat]}
                 </button>
               ))}
@@ -465,7 +465,7 @@ function Roster({ members, memberId, owner, act, focus }: { members: Member[]; m
                 onClick={() => {
                   if (confirm(`「${m.name}」さんを名簿から外しますか？\nチームの席も外れます（本人はもう一度参加すれば戻れます）。`)) act({ type: 'kick', memberId: m.id });
                 }}
-                className="shrink-0 w-4 h-5 inline-flex items-center justify-center text-white/40 hover:text-[#FF4655] text-sm leading-none">×</button>
+                className="shrink-0 w-4 h-8 inline-flex items-center justify-center text-white/40 hover:text-[#FF4655] text-base leading-none">×</button>
             ))}
           </li>
         ))}
@@ -515,7 +515,7 @@ function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealin
   const [openId, setOpenId] = useState<string | null>(null);
   const memberOf = (id: string) => state.members.find(m => m.id === id);
   const pickNote = (m?: Member) => m && (m.bindPick || m.extraRarity)
-    ? <span className="text-[11px] text-gray-400 ml-2">{m.bindPick && `指定 ${m.bindPick}`}{m.bindPick && m.extraRarity && '・'}{m.extraRarity && `2つ目 ${m.extraRarity}`}</span> : null;
+    ? <span className="text-[13px] text-gray-400 ml-2">{m.bindPick && `指定 ${m.bindPick}`}{m.bindPick && m.extraRarity && '・'}{m.extraRarity && `2つ目 ${m.extraRarity}`}</span> : null;
 
   return (
     <section className={panel(focus)}>
@@ -540,15 +540,15 @@ function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealin
               <li key={s.memberId} className={`bg-[#1f2a33] ${edge} ${open ? 'outline outline-1 outline-white/25' : ''} ${rerolling === i ? 'animate-pulse' : ''}`}>
                 <button type="button" onClick={() => setOpenId(open ? null : s.memberId)} aria-expanded={open}
                   className="w-full flex items-stretch gap-2 text-left hover:bg-white/[0.03]">
-                  <img src={s.agent.image} alt="" className={`w-11 h-[52px] object-cover object-top shrink-0 ${hideAgent ? 'blur-md opacity-40' : ''}`} />
+                  <img src={s.agent.image} alt="" className={`w-[60px] h-[72px] object-cover object-top shrink-0 ${hideAgent ? 'blur-md opacity-40' : ''}`} />
                   <span className="min-w-0 flex-1 py-1 flex flex-col justify-center gap-0.5">
                     <span className="flex items-center gap-1.5 min-w-0">
-                      <b className="text-sm truncate">{s.name}</b>
-                      <span className="text-[11px] text-gray-400 inline-flex items-center gap-1 shrink-0"><RoleIcon role={s.agent.role} size={11} />{hideAgent ? '抽選中…' : s.agent.name}</span>
+                      <b className="text-[17px] truncate">{s.name}</b>
+                      <span className="text-[13px] text-gray-400 inline-flex items-center gap-1 shrink-0"><RoleIcon role={s.agent.role} size={13} />{hideAgent ? '抽選中…' : s.agent.name}</span>
                       {pickNote(m)}
                     </span>
-                    <span className="flex items-baseline text-xs text-white/85 leading-snug"><RarityText rarity={s.bind.rarity} /><span>{hideBind ? '抽選中…' : s.bind.text.replace(/\n/g, ' ')}</span></span>
-                    {s.extra && <span className="flex items-baseline text-xs text-white/85 leading-snug"><RarityText rarity={s.extra.rarity} /><span>{s.extra.text.replace(/\n/g, ' ')}<span className="text-gray-400 ml-1">（2つ目）</span></span></span>}
+                    <span className="flex items-baseline text-[15px] text-white/85 leading-snug"><RarityText rarity={s.bind.rarity} /><span>{hideBind ? '抽選中…' : s.bind.text.replace(/\n/g, ' ')}</span></span>
+                    {s.extra && <span className="flex items-baseline text-[15px] text-white/85 leading-snug"><RarityText rarity={s.extra.rarity} /><span>{s.extra.text.replace(/\n/g, ' ')}<span className="text-gray-400 ml-1">（2つ目）</span></span></span>}
                   </span>
                   <span className="shrink-0 self-center px-2 text-gray-400 text-xs" aria-hidden="true">{open ? '▴' : '▾'}</span>
                 </button>
@@ -614,7 +614,7 @@ function MapPanel({ state, locked, act, focus, spinning }: { state: RoomState; l
           title={ready ? '' : '先に「候補をOBSに出す」を押してください'}
           className={`${btnYellow} py-1.5 px-4 ml-auto whitespace-nowrap`}>マップを回す（候補{pool.length}）</button>
       </div>
-      <div className="grid grid-cols-4 sm:grid-cols-7 2xl:grid-cols-[repeat(13,minmax(0,1fr))] gap-1.5">
+      <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
         {MAPS.map(m => {
           const marked = marks.includes(m.id);
           const used = state.mapHistory.includes(m.id);
@@ -625,7 +625,7 @@ function MapPanel({ state, locked, act, focus, spinning }: { state: RoomState; l
             <button key={m.id} onClick={() => act({ type: 'mapMark', mapId: m.id })}
               className={`relative aspect-video overflow-hidden border-2 ${current ? 'border-[#ffd83b]' : mode === 'PICK' && marked ? 'border-[#FF4655]' : 'border-white/10'}`}>
               <img src={mapImage(m)} alt="" className={`absolute inset-0 w-full h-full object-cover ${out ? 'grayscale opacity-30' : ''}`} />
-              <span className="absolute inset-x-0 bottom-0 text-[10px] font-black tracking-wider bg-black/60">{m.name}</span>
+              <span className="absolute inset-x-0 bottom-0 text-sm font-black tracking-wider bg-black/60 py-0.5">{m.name}</span>
               {(current || (used && !(spinning && state.map === m.id)) || marked) && (
                 <span className={`absolute top-0.5 left-0.5 text-[9px] font-black px-1 ${
                   current ? 'bg-[#ffd83b] text-[#2b2a3f]' : marked ? (mode === 'PICK' ? 'bg-[#FF4655]' : 'bg-gray-700') : 'bg-black/70'}`}>
