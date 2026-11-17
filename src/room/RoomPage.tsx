@@ -296,7 +296,11 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
       )}
 
       <div className="grid gap-3 lg:grid-cols-[minmax(560px,720px)_minmax(0,1fr)] items-start [&>*]:min-w-0">
-        <Roster members={state.members} memberId={memberId} owner={state.owner ?? null} act={act} focus={step === 'gather'} />
+        <div>
+          <Roster members={state.members} memberId={memberId} owner={state.owner ?? null} act={act} focus={step === 'gather'} />
+          {/* 11/17 本人：回す人以外は、この画面を閉じてよいことを枠の外に薄い赤字で */}
+          <p className="text-[13px] mt-2 px-1 leading-relaxed"><span className="text-[#FF4655]/70">参加してOBSの設定が済んだら、代表して回す人以外はこの画面を閉じて大丈夫です。</span><br /><span className="text-white/50">名前やランクを変えるときは、招待リンクからまた開いてください。</span></p>
+        </div>
         <div className="grid gap-3 [&>*]:min-w-0">
           <div className="grid gap-3 md:grid-cols-2 items-start [&>*]:min-w-0">
             {(['ATK', 'DEF'] as Side[]).map(side => (
@@ -513,6 +517,17 @@ function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealin
   const changed = roll && (roll.slots.length !== seated.length || roll.slots.some(s => !seated.some(m => m.id === s.memberId)));
   // 操作の帯を開いている人
   const [openId, setOpenId] = useState<string | null>(null);
+  // 開いた帯は、その人の行の外を触ったら閉じる（11/17 本人「設定だけして次の操作できたほうが楽」）
+  useEffect(() => {
+    if (!openId) return;
+    const close = (e: PointerEvent) => {
+      const row = (e.target as Element | null)?.closest?.('[data-slot]');
+      // 人の行を押したときは、その行の onClick が切り替える（押す瞬間に閉じると行が上にずれて、別の人を開いてしまう）
+      if (!row || row.getAttribute('data-side') !== side) setOpenId(null);
+    };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [openId, side]);
   const memberOf = (id: string) => state.members.find(m => m.id === id);
   const pickNote = (m?: Member) => m && (m.bindPick || m.extraRarity)
     ? <span className="text-[13px] text-gray-400 ml-2">{m.bindPick && `指定 ${m.bindPick}`}{m.bindPick && m.extraRarity && '・'}{m.extraRarity && `2つ目 ${m.extraRarity}`}</span> : null;
@@ -537,7 +552,7 @@ function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealin
             const hideAgent = rerolling === i && rerollTarget === 'agent';
             const hideBind = rerolling === i && rerollTarget === 'bind';
             return (
-              <li key={s.memberId} className={`bg-[#1f2a33] ${edge} ${open ? 'outline outline-1 outline-white/25' : ''} ${rerolling === i ? 'animate-pulse' : ''}`}>
+              <li key={s.memberId} data-slot={s.memberId} data-side={side} className={`bg-[#1f2a33] ${edge} ${open ? 'outline outline-1 outline-white/25' : ''} ${rerolling === i ? 'animate-pulse' : ''}`}>
                 <button type="button" onClick={() => setOpenId(open ? null : s.memberId)} aria-expanded={open}
                   className="w-full flex items-stretch gap-2 text-left hover:bg-white/[0.03]">
                   <img src={s.agent.image} alt="" className={`w-[60px] h-[72px] object-cover object-top shrink-0 ${hideAgent ? 'blur-md opacity-40' : ''}`} />
@@ -569,7 +584,7 @@ function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealin
           {seated.map(m => {
             const open = openId === m.id;
             return (
-              <li key={m.id} className={`bg-[#1f2a33] ${edge} ${open ? 'outline outline-1 outline-white/25' : ''}`}>
+              <li key={m.id} data-slot={m.id} data-side={side} className={`bg-[#1f2a33] ${edge} ${open ? 'outline outline-1 outline-white/25' : ''}`}>
                 <button type="button" onClick={() => setOpenId(open ? null : m.id)} aria-expanded={open}
                   className="w-full h-10 flex items-center gap-2 px-2.5 text-left hover:bg-white/[0.03]">
                   <b className="text-base truncate">{m.name}</b><RankChip rank={m.rank} />{pickNote(m)}
