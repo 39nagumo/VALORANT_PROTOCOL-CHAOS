@@ -302,10 +302,12 @@ function RoomView({ room, state, uid, memberId }: { room: Room; state: RoomState
             {(['ATK', 'DEF'] as Side[]).map(side => (
               <TeamPanel key={side} side={side} state={state} locked={locked} act={act}
                 focus={step === (side === 'ATK' ? 'atk' : 'def')}
-                rerolling={active?.kind === 'reroll' && active.side === side ? active.index : null} />
+                rerolling={active?.kind === 'reroll' && active.side === side ? active.index : null}
+                rerollTarget={active?.kind === 'reroll' && active.side === side ? active.target : null}
+                revealing={active?.kind === 'team' && active.side === side} />
             ))}
           </div>
-          <MapPanel state={state} locked={locked} act={act} focus={step === 'map'} />
+          <MapPanel state={state} locked={locked} act={act} focus={step === 'map'} spinning={active?.kind === 'map'} />
         </div>
       </div>
 
@@ -480,7 +482,7 @@ function Roster({ members, memberId, owner, act, focus }: { members: Member[]; m
 
 /** 縛りのレア度名を、その色の小さな文字で（チームの欄では色はここだけ） */
 const RarityText = ({ rarity }: { rarity: BindRarity }) => (
-  <span className="shrink-0 text-[10px] font-black mr-1.5" style={{ color: RARITY_COLOR[rarity] }}>{rarity.toUpperCase()}</span>
+  <span className="shrink-0 w-[54px] text-[10px] font-black" style={{ color: RARITY_COLOR[rarity] }}>{rarity.toUpperCase()}</span>
 );
 
 /** 行を押すと下に開く、大きな操作の帯 */
@@ -501,8 +503,8 @@ function SlotTools({ member, act, extraBtns }: { member: Member | undefined; act
 
 const toolBtn = 'inline-flex items-center justify-center h-8 px-3 text-xs font-black bg-[#33414d] border border-white/20 hover:bg-[#3d4d5a] disabled:opacity-30';
 
-function TeamPanel({ side, state, locked, act, rerolling, focus }: {
-  side: Side; state: RoomState; locked: boolean; act: Act; rerolling: number | null; focus: boolean;
+function TeamPanel({ side, state, locked, act, rerolling, rerollTarget, revealing, focus }: {
+  side: Side; state: RoomState; locked: boolean; act: Act; rerolling: number | null; rerollTarget: 'agent' | 'bind' | null; revealing: boolean; focus: boolean;
 }) {
   const roll = state.teams[side];
   const seated = state.members.filter(m => m.seat === side);
@@ -525,23 +527,27 @@ function TeamPanel({ side, state, locked, act, rerolling, focus }: {
           {roll ? '回し直す' : '回す'}
         </button>
       </div>
-      {roll ? (
+      {roll && revealing ? (
+        <div className="bg-[#1f2a33] p-4 text-sm text-gray-300 animate-pulse">抽選中…（OBSで発表中。終わるとここに出ます）</div>
+      ) : roll ? (
         <ul className="space-y-1">
           {roll.slots.map((s, i) => {
             const m = memberOf(s.memberId);
             const open = openId === s.memberId;
+            const hideAgent = rerolling === i && rerollTarget === 'agent';
+            const hideBind = rerolling === i && rerollTarget === 'bind';
             return (
               <li key={s.memberId} className={`bg-[#1f2a33] ${edge} ${open ? 'outline outline-1 outline-white/25' : ''} ${rerolling === i ? 'animate-pulse' : ''}`}>
                 <button type="button" onClick={() => setOpenId(open ? null : s.memberId)} aria-expanded={open}
                   className="w-full flex items-stretch gap-2 text-left hover:bg-white/[0.03]">
-                  <img src={s.agent.image} alt="" className="w-11 h-[52px] object-cover object-top shrink-0" />
+                  <img src={s.agent.image} alt="" className={`w-11 h-[52px] object-cover object-top shrink-0 ${hideAgent ? 'blur-md opacity-40' : ''}`} />
                   <span className="min-w-0 flex-1 py-1 flex flex-col justify-center gap-0.5">
                     <span className="flex items-center gap-1.5 min-w-0">
                       <b className="text-sm truncate">{s.name}</b>
-                      <span className="text-[11px] text-gray-400 inline-flex items-center gap-1 shrink-0"><RoleIcon role={s.agent.role} size={11} />{s.agent.name}</span>
+                      <span className="text-[11px] text-gray-400 inline-flex items-center gap-1 shrink-0"><RoleIcon role={s.agent.role} size={11} />{hideAgent ? '抽選中…' : s.agent.name}</span>
                       {pickNote(m)}
                     </span>
-                    <span className="flex items-baseline text-xs text-white/85 leading-snug"><RarityText rarity={s.bind.rarity} /><span>{s.bind.text.replace(/\n/g, ' ')}</span></span>
+                    <span className="flex items-baseline text-xs text-white/85 leading-snug"><RarityText rarity={s.bind.rarity} /><span>{hideBind ? '抽選中…' : s.bind.text.replace(/\n/g, ' ')}</span></span>
                     {s.extra && <span className="flex items-baseline text-xs text-white/85 leading-snug"><RarityText rarity={s.extra.rarity} /><span>{s.extra.text.replace(/\n/g, ' ')}<span className="text-gray-400 ml-1">（2つ目）</span></span></span>}
                   </span>
                   <span className="shrink-0 self-center px-2 text-gray-400 text-xs" aria-hidden="true">{open ? '▴' : '▾'}</span>
@@ -583,7 +589,7 @@ function TeamPanel({ side, state, locked, act, rerolling, focus }: {
 }
 
 /** マップ：右下に横長。手順は1行にまとめる（①OBSに出す ②BAN/PICK ③マップを押す ④回す） */
-function MapPanel({ state, locked, act, focus }: { state: RoomState; locked: boolean; act: Act; focus: boolean }) {
+function MapPanel({ state, locked, act, focus, spinning }: { state: RoomState; locked: boolean; act: Act; focus: boolean; spinning: boolean }) {
   const mode: MapMode = state.mapMode ?? 'BAN';
   const marks = state.mapMarks ?? [];
   const pool = mapPool(MAPS.map(m => m.id), state);
@@ -612,14 +618,15 @@ function MapPanel({ state, locked, act, focus }: { state: RoomState; locked: boo
         {MAPS.map(m => {
           const marked = marks.includes(m.id);
           const used = state.mapHistory.includes(m.id);
-          const current = state.map === m.id;
-          const out = (mode === 'BAN' && marked) || (mode === 'PICK' && !marked) || (used && !current);
+          // 抽選の演出中は、決まったマップを伏せる（OBS と同じ時に出す）
+          const current = state.map === m.id && !spinning;
+          const out = (mode === 'BAN' && marked) || (mode === 'PICK' && !marked) || (used && !current && !(spinning && state.map === m.id));
           return (
             <button key={m.id} onClick={() => act({ type: 'mapMark', mapId: m.id })}
               className={`relative aspect-video overflow-hidden border-2 ${current ? 'border-[#ffd83b]' : mode === 'PICK' && marked ? 'border-[#FF4655]' : 'border-white/10'}`}>
               <img src={mapImage(m)} alt="" className={`absolute inset-0 w-full h-full object-cover ${out ? 'grayscale opacity-30' : ''}`} />
               <span className="absolute inset-x-0 bottom-0 text-[10px] font-black tracking-wider bg-black/60">{m.name}</span>
-              {(current || used || marked) && (
+              {(current || (used && !(spinning && state.map === m.id)) || marked) && (
                 <span className={`absolute top-0.5 left-0.5 text-[9px] font-black px-1 ${
                   current ? 'bg-[#ffd83b] text-[#2b2a3f]' : marked ? (mode === 'PICK' ? 'bg-[#FF4655]' : 'bg-gray-700') : 'bg-black/70'}`}>
                   {current ? '今回' : marked ? mode : '済'}

@@ -22,24 +22,24 @@ export const BIND_RARITIES: BindRarity[] = ['CHAOS', 'Epic', 'Exotic', 'Unique',
 export const isBindRarity = (v: unknown): v is BindRarity => BIND_RARITIES.includes(v as BindRarity);
 
 /**
- * ランクと点数（2026-11-17 いったん決めた値。上の段ほど大きく上がる）。
+ * ランクと点数（2026-11-17 本人の指定：アイアンから 1,1,2,3,5,7,9,12,15）。
  * 点数はチーム分けの目安にだけ使う。変えるときはここだけ直す
  */
 export const RANKS = [
   // color＝公式のランクの紋章の色を目安にした札の地の色、ink＝その上の文字の色、fg＝暗い地の上で文字として使う色
   { id: 'iron', label: 'アイアン', points: 1, color: '#7a7a7a', ink: '#ffffff', fg: '#a8a8a8' },
-  { id: 'bronze', label: 'ブロンズ', points: 2, color: '#a5774a', ink: '#ffffff', fg: '#d29a63' },
-  { id: 'silver', label: 'シルバー', points: 3, color: '#c8d0d2', ink: '#1b1f24', fg: '#dfe6e8' },
-  { id: 'gold', label: 'ゴールド', points: 5, color: '#e6b84a', ink: '#1b1f24', fg: '#f0c45a' },
-  { id: 'platinum', label: 'プラチナ', points: 7, color: '#36b3c4', ink: '#0b1a1d', fg: '#4fd0e0' },
-  { id: 'diamond', label: 'ダイヤモンド', points: 10, color: '#b77fe0', ink: '#ffffff', fg: '#c99af0' },
-  { id: 'ascendant', label: 'アセンダント', points: 13, color: '#2fb576', ink: '#ffffff', fg: '#3fd28c' },
-  { id: 'immortal', label: 'イモータル', points: 17, color: '#c8394f', ink: '#ffffff', fg: '#ff5a72' },
-  { id: 'radiant', label: 'レディアント', points: 22, color: '#fff1b8', ink: '#5a4300', fg: '#fff1b8' },
+  { id: 'bronze', label: 'ブロンズ', points: 1, color: '#a5774a', ink: '#ffffff', fg: '#d29a63' },
+  { id: 'silver', label: 'シルバー', points: 2, color: '#c8d0d2', ink: '#1b1f24', fg: '#dfe6e8' },
+  { id: 'gold', label: 'ゴールド', points: 3, color: '#e6b84a', ink: '#1b1f24', fg: '#f0c45a' },
+  { id: 'platinum', label: 'プラチナ', points: 5, color: '#36b3c4', ink: '#0b1a1d', fg: '#4fd0e0' },
+  { id: 'diamond', label: 'ダイヤモンド', points: 7, color: '#b77fe0', ink: '#ffffff', fg: '#c99af0' },
+  { id: 'ascendant', label: 'アセンダント', points: 9, color: '#2fb576', ink: '#ffffff', fg: '#3fd28c' },
+  { id: 'immortal', label: 'イモータル', points: 12, color: '#c8394f', ink: '#ffffff', fg: '#ff5a72' },
+  { id: 'radiant', label: 'レディアント', points: 15, color: '#fff1b8', ink: '#5a4300', fg: '#fff1b8' },
 ] as const;
 export type RankId = typeof RANKS[number]['id'];
-/** ランクを選んでいない人は、この点数として数える（ゴールド相当） */
-export const UNRANKED_POINTS = 5;
+/** ランクを選んでいない人は、この点数として数える（2026-11-17 本人の指定で3点） */
+export const UNRANKED_POINTS = 3;
 /** チーム分けの候補にする「釣り合いの段」の数（いちばん釣り合う差、その次に近い差、…） */
 export const BALANCE_LEVELS = 2;
 /** 候補がこれより少ないときは、もう1段先の差まで広げる（同じ編成ばかりにならないように） */
