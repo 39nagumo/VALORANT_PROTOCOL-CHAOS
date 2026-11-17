@@ -1,11 +1,12 @@
 import { DurableObject } from 'cloudflare:workers';
 import { GachaSystem } from '../../src/logic/gacha';
-import { rerollAgent, rerollBind } from '../../src/logic/reroll';
+import { rerollAgent, rerollBind, drawBind } from '../../src/logic/reroll';
+import type { Bind } from '../../src/logic/gacha';
 import { MAPS } from '../../src/data/maps';
 import {
   ClientMessage, Member, RoomEvent, RoomState, ServerMessage, Side, TeamRoll,
   TEAM_SIZE, EVENT_LEAD_MS, eventDuration,
-  UID_PATTERN, ROOM_PATTERN, NAME_MAX, mapPool, isRankId, rankPoints, balancedSplit, type RankId,
+  UID_PATTERN, ROOM_PATTERN, NAME_MAX, mapPool, isRankId, rankPoints, balancedSplit, isBindRarity, type RankId,
 } from '../../src/logic/room';
 
 export interface Env {
@@ -223,8 +224,43 @@ export class Room extends DurableObject<Env> {
     if (msg.type === 'reroll' && (!Number.isInteger(msg.index) || msg.index < 0 || msg.index >= TEAM_SIZE || (msg.target !== 'agent' && msg.target !== 'bind'))) return;
     if ((msg.type === 'seat' && typeof msg.memberId !== 'string') || (msg.type === 'mapMark' && typeof msg.mapId !== 'string')) return;
     if (msg.type === 'kick' && typeof msg.memberId !== 'string') return;
+    if ((msg.type === 'bindPick' || msg.type === 'extraBind') && (typeof msg.memberId !== 'string' || !(msg.rarity === null || isBindRarity(msg.rarity)))) return;
+    if (msg.type === 'rerollExtra' && (!isSide(msg.side) || !Number.isInteger(msg.index) || msg.index < 0 || msg.index >= TEAM_SIZE)) return;
 
     switch (msg.type) {
+      case 'bindPick':
+      case 'extraBind': {
+        const m = s.members.find(x => x.id === msg.memberId);
+        if (!m) throw new UserError('名簿に見つかりません');
+        if (msg.type === 'bindPick') m.bindPick = msg.rarity; else m.extraRarity = msg.rarity;
+        // もう抽選が済んでいれば、その人の縛りをその場で入れ替える
+        for (const side of ['ATK', 'DEF'] as Side[]) {
+          const team = s.teams[side];
+          const slot = team?.slots.find(x => x.memberId === m.id);
+          if (!team || !slot) continue;
+          const others = team.slots.flatMap(x => (x === slot ? [] : [x.bind.text, ...(x.extra ? [x.extra.text] : [])]));
+          if (msg.type === 'bindPick') {
+            if (msg.rarity && msg.rarity !== slot.bind.rarity) {
+              const next = drawBind(msg.rarity, [...others, ...(slot.extra ? [slot.extra.text] : [])]);
+              if (next) slot.bind = next;
+            }
+          } else {
+            slot.extra = msg.rarity ? drawBind(msg.rarity, [...others, slot.bind.text]) : null;
+          }
+        }
+        break;
+      }
+      case 'rerollExtra': {
+        busy();
+        const team = s.teams[msg.side];
+        const slot = team?.slots[msg.index];
+        if (!team || !slot?.extra) throw new UserError('2つ目の縛りがありません');
+        const others = team.slots.flatMap(x => [x.bind.text, ...(x.extra && x !== slot ? [x.extra.text] : [])]);
+        const next = drawBind(slot.extra.rarity, [...others, slot.extra.text]);
+        if (!next) throw new UserError('ほかに候補がありません');
+        slot.extra = next;
+        break;
+      }
       case 'leave':
         await this.removeMember(me.id, false);
         break;
@@ -250,7 +286,7 @@ export class Room extends DurableObject<Env> {
         const fill = [...shuffle(rest.filter(m => m.online)), ...shuffle(rest.filter(m => !m.online))];
         const players = shuffle([...seated, ...fill].slice(0, TEAM_SIZE * 2));
         // 自己申告のランクの点数で、合計がなるべく等しくなるように分ける
-        const [atk, def] = balancedSplit(players, m => rankPoints(m.rank));
+        const [atk, def] = balancedSplit(players, m => rankPoints(m.rank), m => m.seat === 'ATK');
         s.members.forEach(m => { m.seat = 'WATCH'; });
         atk.forEach(m => { m.seat = 'ATK'; });
         def.forEach(m => { m.seat = 'DEF'; });
@@ -260,10 +296,25 @@ export class Room extends DurableObject<Env> {
         busy();
         const players = s.members.filter(m => m.seat === msg.side);
         if (players.length !== TEAM_SIZE) throw new UserError(`${TEAM_SIZE}人ちょうどにしてから回してください（今${players.length}人）`);
-        const res = new GachaSystem().runGacha(players.map(p => p.name));
+        // 縛りのレア度を指定された人は、そのレア度から先に引いて固定する（残りの人に元の決まりで残りを配る）
+        const taken: string[] = [];
+        const locked = players.flatMap((p, i) => {
+          if (!p.bindPick) return [];
+          const bind = drawBind(p.bindPick, taken);
+          if (!bind) return [];
+          taken.push(bind.text);
+          return [{ index: i, bind }];
+        });
+        const res = new GachaSystem().runGacha(players.map(p => p.name), locked);
+        // 2つ目の縛り（任意）：選んだレア度から、チーム内で被らないものを引く
+        const used = res.binds.map(b => b.text);
         s.teams[msg.side] = {
           side: msg.side,
-          slots: players.map((p, i) => ({ memberId: p.id, name: p.name, agent: res.players[i].agent, bind: res.binds[i] })),
+          slots: players.map((p, i) => {
+            let extra: Bind | null = null;
+            if (p.extraRarity) { extra = drawBind(p.extraRarity, used); if (extra) used.push(extra.text); }
+            return { memberId: p.id, name: p.name, agent: res.players[i].agent, bind: res.binds[i], extra };
+          }),
         };
         this.startEvent({ kind: 'team', id: crypto.randomUUID(), side: msg.side, startedAt: now + EVENT_LEAD_MS, by });
         break;

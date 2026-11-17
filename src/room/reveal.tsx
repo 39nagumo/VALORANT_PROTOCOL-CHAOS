@@ -202,8 +202,9 @@ function RevealCard({ slot, seed, local, reroll, mine }: {
           {badgeOn && <RarityBadge rarity={slot.bind.rarity} />}
           {(() => {
             const text = !bindSpin ? slot.bind.text : badgeOn ? rollingBind(slot.bind.rarity, spinSeed, spinTick(spinT, 90)) : '';
-            return <BindText text={text} className={bindSpin ? 'cr-rolling' : ''} size={bindFontSize(text)} />;
+            return <BindText text={text} className={bindSpin ? 'cr-rolling' : ''} size={slot.extra ? bindFontSize(text, 16) : bindFontSize(text)} />;
           })()}
+          {slot.extra && !bindSpin && <ExtraBind bind={slot.extra} />}
           {bindFlash > 0 && <div className="cr-bind-flash" style={{ opacity: bindFlash }} />}
         </div>
       </div>
@@ -295,6 +296,17 @@ export function MapBoard({ mode, marks, history, by }: { mode: MapMode; marks: s
 
 // ---------------------------------------------------------------- 試合中に出し続けるカード
 
+/** 2つ目の縛り（任意）。1つ目の下に小さく出す */
+export function ExtraBind({ bind, small = false }: { bind: Bind; small?: boolean }) {
+  return (
+    <div className={`cr-extra ${small ? 'cr-extra-sm' : ''}`} style={{ '--rc2': RARITY_COLOR[bind.rarity] } as CSSProperties}>
+      <span className="cr-extra-tag">2つ目</span>
+      <RarityBadge rarity={bind.rarity} size="sm" />
+      <span className="cr-extra-txt">{bind.text.replace(/\n/g, ' ')}</span>
+    </div>
+  );
+}
+
 export function MyCard({ slot, side, reroll, appear = false }: {
   slot: TeamSlot;
   side: Side;
@@ -323,6 +335,7 @@ export function MyCard({ slot, side, reroll, appear = false }: {
           <RarityBadge rarity={slot.bind.rarity} size="sm" />
         </div>
         <BindText text={text} className={spinning && reroll.target === 'bind' ? 'cr-rolling' : ''} size={Math.max(15, bindFontSize(text, 17))} />
+        {slot.extra && <ExtraBind bind={slot.extra} small />}
       </div>
       {flash > 0 && <div className="cr-flash-white" style={{ opacity: flash * 0.8 }} />}
     </div>

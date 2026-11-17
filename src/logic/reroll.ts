@@ -28,6 +28,12 @@ export function rerollBind(current: Bind, teammates: Bind[]): Bind | null {
   return candidates.length ? pick(candidates) : null;
 }
 
+/** 指定したレア度から、exclude（チーム内で使っている縛りの文）と被らない縛りを1つ引く。候補がなければ null */
+export function drawBind(rarity: BindRarity, exclude: string[] = []): Bind | null {
+  const candidates = ALL_BINDS.filter(b => b.rarity === rarity && !exclude.includes(b.text));
+  return candidates.length ? pick(candidates) : null;
+}
+
 /** 演出でスロットを回すときに流す顔ぶれ（同じロールのエージェント） */
 export function agentsOfRole(role: Agent['role']): Agent[] {
   return ALL_AGENTS.filter(a => a.role === role);

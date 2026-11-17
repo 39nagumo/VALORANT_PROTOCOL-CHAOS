@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { MAPS, mapImage } from '../data/maps';
 import {
   ROOM_PATTERN, NAME_MAX, TEAM_SIZE, eventDuration, mapPool,
-  RANKS, UNRANKED_POINTS, rankOf, rankPoints, teamPoints, isRankId,
+  RANKS, UNRANKED_POINTS, rankOf, teamPoints, isRankId, BIND_RARITIES, isBindRarity,
   type ClientMessage, type MapMode, type Member, type RankId, type RoomState, type Seat, type Side,
 } from '../logic/room';
 import { createRoom, useRoom, useServerNow } from './connection';
@@ -11,6 +11,8 @@ import { adoptUid, getSavedName, getSavedRank, getUid, overlayUrl, saveName, sav
 import { MapReveal, RarityBadge, ROLE_LABEL, SIDE_LABEL, Stage, TeamReveal } from './reveal';
 import { RoleIcon } from './RoleIcon';
 import { HowToModal } from './HowToModal';
+import type { BindRarity } from '../logic/gacha';
+import { RankChip, RankPicker } from './RankChip';
 
 const SEAT_NEXT: Record<Seat, Seat> = { WATCH: 'ATK', ATK: 'DEF', DEF: 'WATCH' };
 const SEAT_STYLE: Record<Seat, string> = {
@@ -105,9 +107,21 @@ export function RoomPage() {
 function RankSelect({ value, onChange, compact = false }: { value: RankId | null; onChange: (r: RankId | null) => void; compact?: boolean }) {
   return (
     <select value={value ?? ''} onChange={e => onChange(isRankId(e.target.value) ? e.target.value : null)}
+      style={rankOf(value) ? { background: rankOf(value)!.color, color: rankOf(value)!.ink } : undefined}
       className={`bg-[#0F1923] border border-gray-600 text-white font-bold outline-none focus:border-[#FF4655] ${compact ? 'px-2 py-1 text-xs' : 'w-full px-4 py-3'}`}>
-      <option value="">未設定（{UNRANKED_POINTS}点として数える）</option>
-      {RANKS.map(r => <option key={r.id} value={r.id}>{r.label}（{r.points}点）</option>)}
+      <option value="" style={{ background: '#0F1923', color: '#fff' }}>未設定</option>
+      {RANKS.map(r => <option key={r.id} value={r.id} style={{ background: r.color, color: r.ink }}>{r.label}</option>)}
+    </select>
+  );
+}
+
+/** 縛りのレア度を選ぶ（なし／CHAOS／…） */
+function RaritySelect({ value, onChange }: { value: BindRarity | null; onChange: (r: BindRarity | null) => void }) {
+  return (
+    <select value={value ?? ''} onChange={e => onChange(isBindRarity(e.target.value) ? e.target.value : null)}
+      className="flex-1 min-w-0 bg-[#0F1923] border border-gray-600 text-white font-bold px-2 py-1 outline-none focus:border-[#FF4655]">
+      <option value="">なし</option>
+      {BIND_RARITIES.map(r => <option key={r} value={r}>{r}</option>)}
     </select>
   );
 }
@@ -144,8 +158,8 @@ function JoinForm({ onJoin, onAdopt, onHowTo, error }: {
         名前を入れて参加してください（次回からは自動で入ります）。<br />
         操作は代表1人でOK。ほかの人は参加してOBSにURLを入れるだけです。
       </p>
-      <label className="block text-sm font-bold mb-1.5">最高ランク<span className="text-gray-400 font-normal ml-2">チーム分けの目安になります</span></label>
-      <div className="mb-4"><RankSelect value={rank} onChange={setRank} /></div>
+      <p className="text-sm font-bold mb-1.5">最高ランク<span className="text-gray-400 font-normal ml-2">チーム分けの目安になります（もう一度押すと未設定）</span></p>
+      <div className="mb-4"><RankPicker value={rank} onChange={setRank} /></div>
       <form onSubmit={submit} className="flex gap-2">
         <input value={name} maxLength={NAME_MAX} onChange={e => setName(e.target.value)} placeholder="名前"
           className="flex-1 bg-[#0F1923] border border-gray-600 text-white px-4 py-3 font-bold outline-none focus:border-[#FF4655]" />
@@ -414,26 +428,28 @@ function Roster({ members, memberId, owner, act, focus }: { members: Member[]; m
   const count = (seat: Seat) => members.filter(m => m.seat === seat).length;
   const points = (seat: Seat) => teamPoints(members.filter(m => m.seat === seat));
   const iAmOwner = owner === memberId;
+  // 縛りの指定を開いている人
+  const [openId, setOpenId] = useState<string | null>(null);
   return (
     <section className={panel(focus)}>
       <div className="flex items-baseline justify-between mb-1">
         <h3 className="font-black tracking-wider">参加者 {members.length}人</h3>
         <span className="text-[11px] text-gray-500">● OBS起動中</span>
       </div>
-      <p className="text-[11px] text-gray-500 mb-2">右のボタンで ATK → DEF → 観戦{iAmOwner && <><br />× で名簿から外す（ルームの主だけ）</>}</p>
+      <p className="text-[11px] text-gray-500 mb-2">右のボタンで ATK → DEF → 観戦／「縛」で縛りの指定{iAmOwner && <><br />× で名簿から外す（ルームの主だけ）</>}</p>
       <ul className="overflow-y-auto max-h-[420px] pr-1">
         {members.map(m => (
-          <li key={m.id} className={`flex items-center gap-2 py-1.5 border-b border-white/5 text-sm ${m.seat === 'WATCH' ? 'text-white/50' : ''}`}>
+          <li key={m.id} className={`py-1.5 border-b border-white/5 text-sm ${m.seat === 'WATCH' ? 'text-white/50' : ''}`}>
+           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full shrink-0 ${m.online ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-white/15'}`} />
             <span className="truncate font-bold">
               {m.id === owner && <span className="text-[#ffd83b] mr-1" title="ルームの主">★</span>}
               {m.name}{m.id === memberId && <span className="text-[11px] text-gray-500 font-normal ml-1">（あなた）</span>}
             </span>
-            <span className="shrink-0 text-[10px] text-gray-400" title="自己申告の最高ランク（点数）">
-              {rankOf(m.rank)?.label ?? '未設定'}<span className="text-gray-500">・{rankPoints(m.rank)}</span>
-            </span>
             <button onClick={() => act({ type: 'seat', memberId: m.id, seat: SEAT_NEXT[m.seat] })}
               className={`ml-auto shrink-0 w-12 text-[11px] font-black py-0.5 border ${SEAT_STYLE[m.seat]}`}>{SEAT_LABEL[m.seat]}</button>
+            <button onClick={() => setOpenId(openId === m.id ? null : m.id)} title="縛りの指定・2つ目の縛り" aria-expanded={openId === m.id}
+              className={`shrink-0 w-6 h-5 inline-flex items-center justify-center text-[11px] font-black border ${openId === m.id || m.bindPick || m.extraRarity ? 'border-[#ffd83b] text-[#ffd83b]' : 'border-white/20 text-white/50 hover:text-white'}`}>縛</button>
             {iAmOwner && (m.id === memberId ? <span className="shrink-0 w-5" /> : (
               <button title={`${m.name}さんを名簿から外す`} aria-label={`${m.name}さんを名簿から外す`}
                 onClick={() => {
@@ -441,6 +457,26 @@ function Roster({ members, memberId, owner, act, focus }: { members: Member[]; m
                 }}
                 className="shrink-0 w-5 h-5 inline-flex items-center justify-center text-white/40 hover:text-[#FF4655] hover:bg-white/5 text-sm leading-none">×</button>
             ))}
+           </div>
+           {/* 指定があれば、名前の下に札で出す */}
+           <div className="flex flex-wrap items-center gap-1 mt-1 pl-4 text-[10px] text-gray-400">
+             <RankChip rank={m.rank} size="xs" />
+             {m.bindPick && <><span className="ml-1">指定</span><RarityBadge rarity={m.bindPick} size="sm" /></>}
+             {m.extraRarity && <><span className="ml-1">＋2つ目</span><RarityBadge rarity={m.extraRarity} size="sm" /></>}
+           </div>
+           {openId === m.id && (
+             <div className="mt-1.5 ml-4 p-2 bg-black/30 border border-white/10 grid gap-1.5 text-[11px]">
+               <label className="flex items-center gap-2">
+                 <span className="w-16 shrink-0 text-gray-400">縛りの指定</span>
+                 <RaritySelect value={m.bindPick ?? null} onChange={r => act({ type: 'bindPick', memberId: m.id, rarity: r })} />
+               </label>
+               <label className="flex items-center gap-2">
+                 <span className="w-16 shrink-0 text-gray-400">2つ目</span>
+                 <RaritySelect value={m.extraRarity ?? null} onChange={r => act({ type: 'extraBind', memberId: m.id, rarity: r })} />
+               </label>
+               <p className="text-[10px] text-gray-500 leading-snug">指定したレア度から抽選します。抽選のあとに変えると、その人の縛りを入れ替えます。</p>
+             </div>
+           )}
           </li>
         ))}
       </ul>
@@ -479,6 +515,7 @@ function TeamPanel({ side, state, locked, act, rerolling, focus }: {
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
                   <span className="font-bold text-sm truncate">{s.name}</span>
+                  <RankChip rank={state.members.find(m => m.id === s.memberId)?.rank} size="xs" />
                   <span className="text-[11px] text-gray-400 truncate inline-flex items-center gap-1">
                     <RoleIcon role={s.agent.role} size={12} />{s.agent.name}・{ROLE_LABEL[s.agent.role]}
                   </span>
@@ -487,6 +524,14 @@ function TeamPanel({ side, state, locked, act, rerolling, focus }: {
                   <RarityBadge rarity={s.bind.rarity} size="sm" />
                   <span className="text-[11px] text-white/80 leading-snug line-clamp-2">{s.bind.text.replace(/\n/g, ' ')}</span>
                 </div>
+                {s.extra && (
+                  <div className="flex items-start gap-1.5 mt-1 pt-1 border-t border-dashed border-white/10">
+                    <RarityBadge rarity={s.extra.rarity} size="sm" />
+                    <span className="text-[11px] text-white/80 leading-snug line-clamp-2 flex-1">{s.extra.text.replace(/\n/g, ' ')}</span>
+                    <button disabled={locked} title="2つ目の縛りを振り直す" onClick={() => act({ type: 'rerollExtra', side, index: i })}
+                      className="shrink-0 text-[10px] px-1.5 py-0.5 border border-white/15 text-white/60 hover:text-white disabled:opacity-30">2↻</button>
+                  </div>
+                )}
               </div>
               <div className="flex flex-col gap-1 shrink-0">
                 <button disabled={locked} title="エージェントを振り直す" onClick={() => act({ type: 'reroll', side, index: i, target: 'agent' })}
@@ -501,7 +546,7 @@ function TeamPanel({ side, state, locked, act, rerolling, focus }: {
         <div className="border border-dashed border-white/15 p-3 flex-1">
           {seated.length ? (
             <ul className="flex flex-wrap gap-1.5">
-              {seated.map(m => <li key={m.id} className="px-2.5 py-1 bg-white/10 text-white font-bold text-sm">{m.name}</li>)}
+              {seated.map(m => <li key={m.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/10 text-white font-bold text-sm">{m.name}<RankChip rank={m.rank} size="xs" /></li>)}
             </ul>
           ) : <span className="text-sm text-gray-400">左の名簿でメンバーを振り分けてください</span>}
           <div className="mt-2 text-xs text-gray-400">{seated.length}/{TEAM_SIZE}人・未抽選</div>
